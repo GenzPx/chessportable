@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "chessportable"
-version = "2.5.0"
-description = "ChessPortable v2.5 by GenzPX - Pure-Python CLI chess for Termux with Per-Bot Adaptive (A 0-9), ARC auto-sequence, ECO Openings, Tactical Coach, Gauntlet & Puzzles"
+version = "3.0.0"
+description = "ChessPortable v3.0 by GenzPX - Pure-Python CLI chess for Termux with 20 Bots, Living Dialogues, Eval Momentum Graph, Per-Bot Adaptive (A 0-19), ARC auto-sequence, 135+ Openings, Coach & Puzzles"
 readme = "README.md"
 requires-python = ">=3.8"
 authors = [{name = "GenzPX"}]

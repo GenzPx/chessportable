@@ -18,14 +18,16 @@ from chessportable.board import (
     WHITE,
     move_to_uci,
 )
-from chessportable.bots import BOT_BY_KEY, BOTS
+from chessportable.bots import BOT_BY_KEY, BOTS, CORE_BOTS, EXTRA_BOTS
 from chessportable.cli import _parse_menu_selection
+from chessportable.dialogue import react_to_bot_move, react_to_player_move
 from chessportable.evolving import (
     EvolvingAdaptiveController,
     EvolvingBrain,
     MatchTracker,
     PlayerDNA,
     classify_move,
+    format_move_callout,
 )
 from chessportable.openings import OPENING_INDEX, detect_opening
 from chessportable.puzzles import PUZZLES
@@ -46,7 +48,14 @@ from chessportable.storage import (
     set_bot_brain,
 )
 from chessportable.themes import THEMES, get_theme
-from chessportable.ui import render_adaptive_roster, render_main_menu, render_move_review
+from chessportable.ui import (
+    render_adaptive_roster,
+    render_eval_graph,
+    render_extra_bots_menu,
+    render_main_menu,
+    render_match_analysis,
+    render_move_review,
+)
 
 ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
 
@@ -136,7 +145,7 @@ class TestBoardRules(unittest.TestCase):
 
 class TestOpeningsCoachAndPV(unittest.TestCase):
     def test_eco_opening_detector(self) -> None:
-        self.assertGreaterEqual(len(OPENING_INDEX), 80)
+        self.assertGreaterEqual(len(OPENING_INDEX), 125)
 
         b1 = Board()
         for m in ("e4", "e5", "Nf3", "Nc6", "Bc4"):
@@ -146,7 +155,6 @@ class TestOpeningsCoachAndPV(unittest.TestCase):
         self.assertEqual(hit1[0], "C50")
         self.assertIn("Italian", hit1[1])
 
-
         b2 = Board()
         for m in ("e4", "c5", "Nf3", "d6", "d4", "cxd4", "Nxd4", "Nf6", "Nc3", "a6"):
             b2.make_move(b2.parse_move(m), record_san=True)
@@ -155,13 +163,26 @@ class TestOpeningsCoachAndPV(unittest.TestCase):
         self.assertEqual(hit2[0], "B90")
         self.assertIn("Najdorf", hit2[1])
 
-
         b3 = Board()
         for m in ("d4", "d5", "c4", "e6"):
             b3.make_move(b3.parse_move(m), record_san=True)
         hit3 = detect_opening(b3)
         self.assertIsNotNone(hit3)
         self.assertIn("Queen's Gambit", hit3[1])
+
+        b4 = Board()
+        for m in ("e4", "e5", "Ke2"):
+            b4.make_move(b4.parse_move(m), record_san=True)
+        hit4 = detect_opening(b4)
+        self.assertIsNotNone(hit4)
+        self.assertIn("Bongcloud", hit4[1])
+
+        b5 = Board()
+        for m in ("e4", "d5", "exd5", "Qxd5"):
+            b5.make_move(b5.parse_move(m), record_san=True)
+        hit5 = detect_opening(b5)
+        self.assertIsNotNone(hit5)
+        self.assertIn("Scandinavian", hit5[1])
 
     def test_pv_tactical_coach_and_connected_rooks(self) -> None:
         ai = ChessAI()
@@ -182,30 +203,65 @@ class TestOpeningsCoachAndPV(unittest.TestCase):
         self.assertIsInstance(ai.evaluate(b_blocked), int)
 
 class TestAIAndEvolving(unittest.TestCase):
-    def test_all_10_bots_and_tactics(self) -> None:
-        self.assertEqual(len(BOTS), 10)
+    def test_all_20_bots_and_tactics(self) -> None:
+        self.assertEqual(len(CORE_BOTS), 10)
+        self.assertEqual(len(EXTRA_BOTS), 10)
+        self.assertEqual(len(BOTS), 20)
+        self.assertEqual(len(BOT_BY_KEY), 20)
         ai = ChessAI()
-
 
         m1 = Board("r1bqkbnr/pppp1ppp/2n5/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR w KQkq - 4 4")
         res = ai.choose_move(m1, BOT_BY_KEY["4"])
         self.assertEqual(m1.move_to_san(res.move), "Qxf7#")
 
-
         m2 = Board("r2qkb1r/pp2nppp/3p4/2pNN1B1/2BnP3/3P4/PPP2PPP/R2bK2R w KQkq - 1 0")
         res2 = ai.choose_move(m2, BOT_BY_KEY["0"])
         self.assertEqual(m2.move_to_san(res2.move), "Nf6+")
 
-
         mid = Board("r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3")
         fen0 = mid.fen()
         for bot in BOTS:
-            r = ai.choose_move(mid, bot, time_override=0.15)
+            r = ai.choose_move(mid, bot, time_override=0.10)
             self.assertIn(r.move, mid.legal_moves())
             self.assertEqual(mid.fen(), fen0)
 
-    def test_per_bot_adaptive_all_10_bots_and_brain(self) -> None:
+    def test_living_dialogues_and_eval_graph(self) -> None:
+        bot = BOT_BY_KEY["4"]
+        line = react_to_player_move(
+            bot=bot, san="e4", ply=1, captured_piece=0, is_ep=False,
+            is_castle_k=False, is_castle_q=False, promo_piece=0, gave_check=False,
+            grade_code="book", opening_name="", opening_just_changed=False,
+            from_arc=False, pieces_left=32,
+        )
+        self.assertIsNotNone(line)
+        self.assertIn("e4", line.lower())
 
+        line_it = react_to_player_move(
+            bot=BOT_BY_KEY["13"], san="Bc4", ply=5, captured_piece=0, is_ep=False,
+            is_castle_k=False, is_castle_q=False, promo_piece=0, gave_check=False,
+            grade_code="book", opening_name="Italian Game", opening_just_changed=True,
+            from_arc=False, pieces_left=32,
+        )
+        self.assertIsNotNone(line_it)
+
+        line_bot = react_to_bot_move(
+            bot=BOT_BY_KEY["19"], san="Qxd4", ply=12, captured_piece=5, is_ep=False,
+            gave_check=False, memory_note=None, opening_name="",
+            opening_just_changed=False, pieces_left=26,
+        )
+        self.assertIsNotNone(line_bot)
+
+        miss_g = classify_move(175, is_book=False, missed_win=True)
+        self.assertEqual(miss_g.code, "miss")
+        self.assertEqual(miss_g.symbol, "✕")
+
+        callout = strip_ansi(format_move_callout(classify_move(4, is_tactical_best=True), "Qxf7+", "Qxf7+"))
+        self.assertIn("BRILIAN", callout)
+
+        g_lines = render_eval_graph([20, 40, 120, 310, 80, -90, -290])
+        self.assertGreaterEqual(len(g_lines), 6)
+
+    def test_per_bot_adaptive_all_20_bots_and_brain(self) -> None:
         prof = {"adaptive_elo": 1000}
 
         for key, bot in BOT_BY_KEY.items():
@@ -213,7 +269,9 @@ class TestAIAndEvolving(unittest.TestCase):
             self.assertEqual(_parse_menu_selection(f"a{key}", prof), ("adaptive_bot", (bot, False)))
             self.assertEqual(_parse_menu_selection(f"A {key} fresh", prof), ("adaptive_bot", (bot, True)))
 
-
+        self.assertEqual(_parse_menu_selection("B", prof), ("extra_bots", None))
+        self.assertEqual(_parse_menu_selection("13", prof), ("bot", BOT_BY_KEY["13"]))
+        self.assertEqual(_parse_menu_selection("noctis", prof), ("bot", BOT_BY_KEY["19"]))
         self.assertEqual(_parse_menu_selection("A", prof), ("adaptive_global", 1000))
         self.assertEqual(_parse_menu_selection("A 1750", prof), ("adaptive_global", 1750))
         self.assertEqual(_parse_menu_selection("A list", prof), ("adaptive_roster", None))
@@ -227,11 +285,11 @@ class TestAIAndEvolving(unittest.TestCase):
         mittens = BOT_BY_KEY["4"]
         ctrl = EvolvingAdaptiveController(mittens.elo, dna, brain_mittens, anchor_bot=mittens)
         self.assertTrue(ctrl.is_per_bot)
-        self.assertEqual(ctrl.profile().name, "Adaptive·Mittens")
+        self.assertEqual(ctrl.profile().name, "Adaptif · Mittens")
         d_up, tier_chg = ctrl.update_after_player_move(cp_loss=5, ply=6)
         self.assertGreater(d_up, 0)
         self.assertIsNone(tier_chg)
-        self.assertEqual(ctrl.profile().name, "Adaptive·Mittens")
+        self.assertEqual(ctrl.profile().name, "Adaptif · Mittens")
 
         ai = ChessAI()
         brain = EvolvingBrain()
@@ -249,7 +307,8 @@ class TestAIAndEvolving(unittest.TestCase):
         for i in range(6):
             tracker.record_player_move(
                 ply=2 * i + 1, san="Nf3", cp_loss=10, best_san="Nf3",
-                is_capture=(i % 2 == 0), is_check=(i == 4), is_castle=(i == 2)
+                is_capture=(i % 2 == 0), is_check=(i == 4), is_castle=(i == 2),
+                eval_white_cp=40 + i * 35, player_eval_after=40 + i * 35,
             )
         dna.ingest_match(tracker)
         self.assertIn("C50 Italian Game", dna.favorite_openings)
@@ -263,10 +322,12 @@ class TestAIAndEvolving(unittest.TestCase):
         if move_to_uci(evolved_res.move) != natural_uci:
             self.assertEqual(evolved_res.memory_note, "avoided")
 
-
         rev = strip_ansi(render_move_review(tracker))
-        self.assertIn("REVIEW LANGKAH PER LANGKAH", rev)
+        self.assertIn("CATATAN LANGKAH PER LANGKAH", rev)
         self.assertIn("Nf3", rev)
+        anl = strip_ansi(render_match_analysis(tracker, 2400, "win", lessons, brain.generation))
+        self.assertIn("Peringkat", anl)
+        self.assertIn("Grafik Momentum", anl)
 
     def test_move_grading_and_all_20_puzzles(self) -> None:
         self.assertEqual(classify_move(0, is_book=True).symbol, "📖")
@@ -308,11 +369,14 @@ class TestStorageThemesAndCLI(unittest.TestCase):
                 self.assertEqual(get_bot_brain(prof2, "jim", 4000).generation, 1)
 
                 menu_txt = strip_ansi(render_main_menu(prof2))
-                self.assertIn("A 0-9", menu_txt)
-                self.assertIn("A:1420(G4)", menu_txt)
+                self.assertIn("A 0-19", menu_txt)
+                self.assertIn("Adaptif 1420", menu_txt)
+                extra_txt = strip_ansi(render_extra_bots_menu(prof2))
+                self.assertIn("Budi", extra_txt)
+                self.assertIn("Noctis", extra_txt)
                 roster_txt = strip_ansi(render_adaptive_roster(prof2))
                 self.assertIn("A 0", roster_txt)
-                self.assertIn("A 9", roster_txt)
+                self.assertIn("A 19", roster_txt)
 
 
                 reset_bot_adaptive(prof2, "mittens", 1300)
@@ -356,7 +420,7 @@ class TestStorageThemesAndCLI(unittest.TestCase):
                 else:
                     os.environ["CHESSPORTABLE_HOME"] = old_env
 
-    def test_cli_v25_end_to_end(self) -> None:
+    def test_cli_v30_end_to_end(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             env = dict(os.environ)
             env["CHESSPORTABLE_HOME"] = tmp
@@ -367,7 +431,7 @@ class TestStorageThemesAndCLI(unittest.TestCase):
                 "A list",
                 "",
                 "A 4",
-                "w",
+                "1",
                 "e5",
                 "E4",
                 "coach",
@@ -375,13 +439,17 @@ class TestStorageThemesAndCLI(unittest.TestCase):
                 "theme neon",
                 "style",
                 "hint",
-                "dna",
+                "gaya",
                 "export myg",
                 "save demo",
                 "resign",
                 "y",
                 "v",
-                "3",
+                "2",
+                "B",
+                "13",
+                "2",
+                "quit",
             ]) + "\n"
 
             proc = subprocess.run(
@@ -390,7 +458,7 @@ class TestStorageThemesAndCLI(unittest.TestCase):
                 text=True,
                 capture_output=True,
                 env=env,
-                timeout=35,
+                timeout=45,
             )
             self.assertEqual(proc.returncode, 0, f"stderr: {proc.stderr}")
             out = strip_ansi(proc.stdout)
@@ -398,24 +466,26 @@ class TestStorageThemesAndCLI(unittest.TestCase):
             self.assertIn("(1) [✦] Starrys - Elo 150", out)
             self.assertIn("(0) [✦] Jim - Elo 4000", out)
             self.assertIn("Please Type A for adaptive version", out)
-            self.assertIn("ADAPTIVE EVOLVING ROSTER", out)
-            self.assertIn("Per-Bot Adaptive Aktif", out)
-            self.assertIn("Adaptive·Mittens", out)
+            self.assertIn("DAFTAR LAWAN ADAPTIF", out)
+            self.assertIn("Lawan Adaptif:", out)
+            self.assertIn("Adaptif · Mittens", out)
+            self.assertIn("Pilih sisi mainmu:", out)
             self.assertIn("Illegal!", out)
-            self.assertIn("TACTICAL COACH", out)
+            self.assertIn("SARAN PELATIH", out)
             self.assertIn("Midnight Cyber", out)
             self.assertIn("ASCII Berwarna", out)
             self.assertIn("Saran terbaik:", out)
-            self.assertIn("PLAYER DNA & EVOLVING AI LAB", out)
+            self.assertIn("CATATAN GAYA MAINMU", out)
             self.assertIn("PGN berhasil diekspor", out)
             self.assertIn("disimpan sebagai 'demo'", out)
-            self.assertIn("REVIEW LANGKAH PER LANGKAH", out)
-            self.assertIn("Gen 2", out)
-
+            self.assertIn("EVALUASI AKHIR PERTANDINGAN", out)
+            self.assertIn("CATATAN LANGKAH PER LANGKAH", out)
+            self.assertIn("BOT KLUB & LEGENDA", out)
+            self.assertIn("Kakek Hasan", out)
 
             arc_script = "\n".join([
                 "1",
-                "w",
+                "1",
                 "ARC e4 kh3 z99",
                 "quit",
             ]) + "\n"
@@ -425,13 +495,13 @@ class TestStorageThemesAndCLI(unittest.TestCase):
                 text=True,
                 capture_output=True,
                 env=env,
-                timeout=20,
+                timeout=25,
             )
             self.assertEqual(proc_arc.returncode, 0, f"stderr: {proc_arc.stderr}")
             out_arc = strip_ansi(proc_arc.stdout)
             self.assertIn("ARC aktif (3 langkah otomatis)", out_arc)
-            self.assertIn("Langkahmu: e4", out_arc)
-            self.assertIn("Langkahmu: Nh3", out_arc)
+            self.assertIn("(e4)", out_arc)
+            self.assertIn("(Nh3)", out_arc)
             self.assertIn("ARC berhenti!", out_arc)
 
 

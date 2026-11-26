@@ -46,11 +46,12 @@ Section: games
 Priority: optional
 Installed-Size: ${INSTALLED_SIZE}
 Description: ChessPortable CLI chess for Termux by GenzPX
- ChessPortable v${PKG_VERSION} ("Apex Evolution") by GenzPX is a pure-Python
- terminal chess game for Termux. Includes 10 bots (Starrys 150 to Jim 4000),
- Global ('A') and Per-Bot Adaptive ('A 0'..'A 9'), ARC auto-sequence mode,
- 85+ ECO opening detector, Tactical Coach with PV, post-game move review,
- Gauntlet Boss Rush, 20 Puzzles, 2-Player mode, 6 themes, clocks, and PGN.
+ ChessPortable v${PKG_VERSION} ("Klub Catur") by GenzPX is a pure-Python
+ terminal chess game for Termux. Includes 20 unique bots (10 classic +
+ 10 extra club & legend bots, Elo 150 to 4000), living board-aware
+ dialogues, live move callouts (Brilliant/Blunder/Miss), post-game
+ eval momentum graph & rank badge, Global & Per-Bot Adaptive ('A 0'..'A 19'),
+ ARC auto-sequence, 135+ ECO openings, Coach, Tournament, 20 Puzzles & PGN.
 EOF
 chmod 0644 "$STAGE_DIR/DEBIAN/control"
 

@@ -35,7 +35,8 @@ from .board import (
     move_to_uci,
     name_to_sq,
 )
-from .bots import BOT_BY_KEY, BOTS, BotProfile, nearest_bot_for_elo
+from .bots import BOT_BY_KEY, BOTS, CORE_BOTS, EXTRA_BOTS, BotProfile, nearest_bot_for_elo
+from .dialogue import react_to_bot_move, react_to_player_move
 from .evolving import (
     DEFAULT_BRAIN,
     DEFAULT_DNA,
@@ -43,6 +44,7 @@ from .evolving import (
     EvolvingBrain,
     MatchTracker,
     PlayerDNA,
+    format_move_callout,
 )
 from .openings import detect_opening
 from .puzzles import PUZZLES, Puzzle, puzzles_near_rating
@@ -86,6 +88,7 @@ from .ui import (
     render_board,
     render_dna_lab,
     render_eval_bar,
+    render_extra_bots_menu,
     render_help,
     render_main_menu,
     render_match_analysis,
@@ -115,24 +118,26 @@ def _parse_menu_selection(
 ) -> Tuple[str, Optional[Any]]:
     cleaned = raw.strip().strip("'\"")
     if not cleaned:
-        return ("invalid", "Pilih 1-9, 0, A (Adaptive), G (Gauntlet), P (Puzzle), 2P, D, T, L, R, atau Q.")
+        return ("invalid", "Pilih 0-19, B (Bot Ekstra), A (Adaptif), G (Turnamen), P (Puzzle), 2P, D, T, L, R, atau Q.")
 
     low = cleaned.lower()
     if low in ("q", "quit", "exit"):
         return ("quit", None)
+    if low in ("b", "bots", "ekstra", "extra", "more", "lain"):
+        return ("extra_bots", None)
     if low in ("r", "rekor", "stats", "record", "records", "achievements"):
         return ("records", None)
-    if low in ("l", "load", "saves"):
+    if low in ("l", "load", "saves", "lanjut"):
         return ("load", None)
-    if low in ("d", "dna", "brain", "lab", "evolving"):
+    if low in ("d", "dna", "gaya", "profil", "lab", "evolving"):
         return ("dna", None)
-    if low in ("t", "theme", "themes", "settings", "clock", "jam"):
+    if low in ("t", "theme", "themes", "settings", "clock", "jam", "tema"):
         return ("settings", None)
-    if low in ("g", "gauntlet", "rush", "boss"):
+    if low in ("g", "gauntlet", "rush", "boss", "turnamen"):
         return ("gauntlet", None)
     if low in ("p", "puzzle", "puzzles", "tactic", "tactics"):
         return ("puzzles", None)
-    if low in ("2p", "pvp", "2player", "local", "vs"):
+    if low in ("2p", "pvp", "2player", "local", "vs", "berdua"):
         return ("pvp", None)
     if low in ("style", "ascii", "unicode"):
         return ("style", low)
@@ -142,19 +147,16 @@ def _parse_menu_selection(
     if cleaned in BOT_BY_KEY:
         return ("bot", BOT_BY_KEY[cleaned])
 
-
-    if re.fullmatch(r"(?:a|adaptive)\s+(?:list|roster|all|bots)", low):
+    if re.fullmatch(r"(?:a|adaptive|adaptif)\s+(?:list|roster|all|bots|daftar)", low):
         return ("adaptive_roster", None)
 
-
-    ad_bot_m = re.fullmatch(r"(?:a|adaptive)\s*([0-9])(?:\s+(fresh|reset))?", low)
+    ad_bot_m = re.fullmatch(r"(?:a|adaptive|adaptif)\s*(1[0-9]|[0-9])(?:\s+(fresh|reset))?", low)
     if ad_bot_m:
         key = ad_bot_m.group(1)
         fresh = ad_bot_m.group(2) is not None
         return ("adaptive_bot", (BOT_BY_KEY[key], fresh))
 
-
-    ad_glob_m = re.fullmatch(r"(?:a|adaptive)(?:\s+([0-9]+))?", low)
+    ad_glob_m = re.fullmatch(r"(?:a|adaptive|adaptif)(?:\s+([0-9]+))?", low)
     if ad_glob_m:
         arg = ad_glob_m.group(1)
         if arg is None:
@@ -162,46 +164,51 @@ def _parse_menu_selection(
         elo_num = int(arg)
         if 100 <= elo_num <= 4000:
             return ("adaptive_global", elo_num)
-        return ("invalid", f"Elo '{arg}' di luar jangkauan. Gunakan A, A 0-9, A list, atau Elo 100-4000.")
+        return ("invalid", f"Elo '{arg}' di luar jangkauan. Gunakan A, A 0-19, A list, atau Elo 100-4000.")
 
     for bot in BOTS:
         if low == bot.bot_id or low == bot.name.lower():
             return ("bot", bot)
 
-    return ("invalid", f"Pilihan '{cleaned}' tidak dikenal. Ketik 1-9, 0, A, A 0-9, A list, G, P, 2P, D, T, L, atau R.")
+    return ("invalid", f"Pilihan '{cleaned}' tidak dikenal. Ketik 0-19, B, A, A 0-19, A list, G, P, 2P, D, T, L, atau R.")
 
 def _choose_player_color() -> Optional[int]:
-    ans = _safe_input(f"{BOLD}Pilih warna{RESET} [W=Putih / B=Hitam / R=Acak] {DIM}(Enter=Putih){RESET}: ")
+    print(f"\n{BOLD}Pilih sisi mainmu:{RESET}")
+    print(f"  ({BOLD}1{RESET}) {WHITE_FG}♔ Putih{RESET}  {DIM}— Jalan duluan{RESET}")
+    print(f"  ({BOLD}2{RESET}) {CYAN}♚ Hitam{RESET}  {DIM}— Baca langkah lawan dulu{RESET}")
+    print(f"  ({BOLD}3{RESET}) {YELLOW}Acak{RESET}     {DIM}— Biar takdir yang pilih{RESET}")
+    ans = _safe_input(f"{BOLD}Pilih [1/2/3 atau W/B/R]{RESET} {DIM}(Enter=Putih){RESET}: ")
     if ans is None:
         return None
     low = ans.strip().lower()
-    if low in ("", "w", "white", "putih", "p"):
+    if low in ("", "1", "w", "white", "putih", "p"):
         return WHITE
-    if low in ("b", "black", "hitam", "h"):
+    if low in ("2", "b", "black", "hitam", "h"):
         return BLACK
-    if low in ("r", "random", "acak", "a"):
+    if low in ("3", "r", "random", "acak", "a"):
         chosen = random.choice((WHITE, BLACK))
-        label = "Putih" if chosen == WHITE else "Hitam"
-        print(f"{CYAN}🎲 Warna acak: Kamu main {BOLD}{label}{RESET}{CYAN}!{RESET}")
+        label = "Putih (♔)" if chosen == WHITE else "Hitam (♚)"
+        print(f"{CYAN}Pilihan acak: Kamu main {BOLD}{label}{RESET}{CYAN}!{RESET}")
         return chosen
-    print(f"{YELLOW}Input tidak dikenali, default ke Putih.{RESET}")
+    print(f"{YELLOW}Pilihan tidak dikenali, kamu main Putih duluan ya.{RESET}")
     return WHITE
 
 def _pick_saved_game() -> Optional[Tuple[Board, Dict[str, Any]]]:
     saves = list_saves()
     if not saves:
-        print(f"{YELLOW}Belum ada save game tersimpan.{RESET}")
+        print(f"{YELLOW}Belum ada permainan yang disimpan.{RESET}")
         return None
-    print(f"\n{BOLD}{CYAN}═══ DAFTAR SAVE GAME ═══{RESET}")
+    print(f"\n{BOLD}{CYAN}═══ PERMAINAN TERSIMPAN ═══{RESET}")
     for idx, sv in enumerate(saves, 1):
         mode_tag = (
-            f"Adaptive Elo {sv.get('adaptive_elo', '?')}"
+            f"Adaptif Elo {sv.get('adaptive_elo', '?')}"
             if sv.get("is_adaptive")
             else f"{sv.get('bot_name', '?')} (Elo {sv.get('bot_elo', '?')})"
         )
+        turns = (int(sv.get("moves", 0)) + 1) // 2
         print(
             f"  ({BOLD}{idx}{RESET}) {GREEN}{sv['name']}{RESET}  ·  vs {mode_tag}  ·  "
-            f"{sv.get('moves', 0)} ply  ·  {DIM}{sv.get('saved_at', '')}{RESET}"
+            f"{turns} langkah  ·  {DIM}{sv.get('saved_at', '')}{RESET}"
         )
     ans = _safe_input(f"Pilih nomor atau nama save {DIM}(Enter=batal){RESET}: ")
     if ans is None or not ans.strip():
@@ -367,27 +374,27 @@ def run_dna_lab(profile: Dict[str, Any]) -> None:
         print(render_dna_lab(profile))
         print()
         ans = _safe_input(
-            f"{DIM}[Enter] Kembali  |  'roster' Adaptive 0-9  |  'reset-brain'  |  'reset-dna':{RESET} "
+            f"{DIM}[Enter] Kembali  |  'daftar' Adaptif 0-19  |  'reset-memori'  |  'reset-gaya':{RESET} "
         )
         if ans is None:
             return
         low = ans.strip().lower()
-        if low in ("roster", "list", "bots", "a"):
+        if low in ("roster", "list", "bots", "a", "daftar"):
             clear_screen()
             print(render_adaptive_roster(profile))
             print()
-            _safe_input(f"{DIM}Tekan Enter untuk kembali ke DNA Lab...{RESET}")
+            _safe_input(f"{DIM}Tekan Enter untuk kembali...{RESET}")
             continue
-        if low == "reset-brain":
+        if low in ("reset-brain", "reset-memori"):
             set_brain(profile, EvolvingBrain(DEFAULT_BRAIN))
             save_profile(profile)
-            print(f"{YELLOW}🧬 Memori & Generasi Global Evolving AI telah direset ke Gen 1.{RESET}")
+            print(f"{YELLOW}Ingatan lawan adaptif sudah direset seperti baru kenalan.{RESET}")
             time.sleep(0.6)
             continue
-        if low == "reset-dna":
+        if low in ("reset-dna", "reset-gaya"):
             set_dna(profile, PlayerDNA(DEFAULT_DNA))
             save_profile(profile)
-            print(f"{YELLOW}Profil Player DNA telah direset.{RESET}")
+            print(f"{YELLOW}Catatan gaya mainmu sudah dibersihkan.{RESET}")
             time.sleep(0.6)
             continue
         return
@@ -531,7 +538,7 @@ def run_puzzles_mode(profile: Dict[str, Any]) -> None:
                         )
                     )
                     if len(solved_ids) >= 10 and unlock_achievement(profile, "puzzle_10"):
-                        print(f"\n{BOLD}{YELLOW}🏅 ACHIEVEMENT UNLOCKED: 🧩 Tactical Prodigy!{RESET}")
+                        print(f"\n{BOLD}{YELLOW}🏆 MEDALI BARU: 🧩 Ahli Taktik!{RESET}")
                     ans = _safe_input(f"\n[{BOLD}Enter{RESET}] Puzzle berikutnya  [{BOLD}M{RESET}] Kembali ke Menu: ")
                     if ans is None or ans.strip().lower() in ("m", "menu", "q", "quit"):
                         return
@@ -798,7 +805,7 @@ def play_match(
                 record_per_bot_adaptive_result(
                     profile, anchor.bot_id, anchor.elo, outcome, adaptive.elo
                 )
-                label_prefix = f"🧬 Adaptive·{anchor.name} Elo"
+                label_prefix = f"★ Adaptif·{anchor.name} Elo"
             else:
                 set_brain(profile, brain)
                 tier_bot = nearest_bot_for_elo(old_elo)
@@ -808,7 +815,7 @@ def play_match(
                     adaptive.elo,
                     tier_bot_id=tier_bot.bot_id if outcome == "win" else None,
                 )
-                label_prefix = "🧬 Adaptive Global Elo"
+                label_prefix = "★ Adaptif Utama Elo"
             elo_banner = (
                 f"{CYAN}{label_prefix}: {old_elo} → {BOLD}{adaptive.elo}{RESET} "
                 f"({GREEN}+{delta}▲{RESET})" if delta >= 0 else
@@ -819,7 +826,7 @@ def play_match(
             record_bot_result(profile, bot.bot_id, outcome)
             elo_banner = ""
             if outcome == "win" and not was_defeated:
-                elo_banner = f"{BOLD}{YELLOW}★ BADGE UNLOCKED! Kamu berhasil mengalahkan {bot.name} (Elo {bot.elo})! ★{RESET}"
+                elo_banner = f"{BOLD}{YELLOW}★ LENCANA TERBUKA! Kamu berhasil mengalahkan {bot.name} (Elo {bot.elo})! ★{RESET}"
 
         new_achs = check_match_achievements(
             profile=profile,
@@ -834,9 +841,9 @@ def play_match(
         save_profile(profile)
 
         clear_screen()
-        evo_tag = f"🧬 {active_bot.title}" if is_adaptive else None
+        evo_tag = f"★ {active_bot.title}" if is_adaptive else None
         banner_title = (
-            f"{BOLD}{MAGENTA}🔥 GAUNTLET STAGE {gauntlet_stage + 1}/10 — vs {bot.name}{RESET}"
+            f"{BOLD}{MAGENTA}🔥 TURNAMEN BABAK {gauntlet_stage + 1}/10 — vs {bot.name}{RESET}"
             if gauntlet_stage is not None
             else None
         )
@@ -923,9 +930,9 @@ def play_match(
 
         if needs_render:
             clear_screen()
-            evo_tag = f"🧬 {active_bot.title}" if is_adaptive else None
+            evo_tag = f"★ {active_bot.title}" if is_adaptive else None
             banner_title = (
-                f"{BOLD}{MAGENTA}🔥 GAUNTLET STAGE {gauntlet_stage + 1}/10 — vs {bot.name}{RESET}"
+                f"{BOLD}{MAGENTA}🔥 TURNAMEN BABAK {gauntlet_stage + 1}/10 — vs {bot.name}{RESET}"
                 if gauntlet_stage is not None
                 else None
             )
@@ -992,41 +999,53 @@ def play_match(
 
             to_sq = move_to(res.move)
             captured_p = board.squares[to_sq]
-            is_ep = move_flag(res.move) == FLAG_EN_PASSANT
+            bot_flag = move_flag(res.move)
+            is_ep = bot_flag == FLAG_EN_PASSANT
+            is_bot_castle = bot_flag in (FLAG_CASTLE_KING, FLAG_CASTLE_QUEEN)
+            is_bot_promo = move_promo(res.move) != 0
             bot_san = board.move_to_san(res.move)
             bot_uci = move_to_uci(res.move)
             ai_side = board.turn
+            prev_op_name = opening_name
 
             tracker.record_ai_decision(zhex_before, bot_uci, len(board.move_history) + 1, res.score_cp)
             board.make_move(res.move, record_san=True)
             _update_opening()
             last_eval_cp = res.score_cp
             last_eval_side = ai_side
+            white_ev_ai = res.score_cp if ai_side == WHITE else -res.score_cp
+            tracker.record_eval(white_ev_ai)
 
             if board.in_check() or (captured_p != EMPTY and abs(captured_p) >= KNIGHT):
                 ring_bell(sound_bell)
 
-
-            if res.memory_note == "avoided" and brain is not None:
+            if res.memory_note in ("avoided", "trap"):
                 tracker.memory_hits += 1
-                bot_message = f"🧬 [Gen {brain.generation}] Aku ingat jebakanmu di posisi ini! Kali ini aku pilih jalur baru!"
-            elif res.memory_note == "trap" and brain is not None:
-                tracker.memory_hits += 1
-                bot_message = f"🧬 [Gen {brain.generation}] Posisi ini dulu sempat bikin kamu goyah... siap?"
-            elif board.in_check():
-                bot_message = active_bot.say("check")
-            elif captured_p != EMPTY and abs(captured_p) >= KNIGHT:
-                bot_message = active_bot.say("capture")
-            elif is_ep or (captured_p != EMPTY and random.random() < 0.4):
-                bot_message = active_bot.say("capture")
-            elif random.random() < 0.22:
-                bot_message = active_bot.say("idle")
-            else:
-                bot_message = None
 
-            meta = "opening book" if res.from_book else f"d{res.depth}, {res.elapsed:.2f}s"
-            mem_tag = f" {MAGENTA}[🧬 Memory]{RESET}" if res.memory_note else ""
-            status_note = f"{CYAN}➜ {active_bot.name} melangkah: {BOLD}{bot_san}{RESET} {DIM}({meta}){RESET}{mem_tag}"
+            pieces_left_ai = sum(1 for sq in board.squares if sq != EMPTY)
+            ai_line = react_to_bot_move(
+                bot=active_bot,
+                san=bot_san,
+                ply=len(board.move_history),
+                captured_piece=PAWN if is_ep else captured_p,
+                is_ep=is_ep,
+                gave_check=board.in_check(),
+                memory_note=res.memory_note,
+                opening_name=opening_name,
+                opening_just_changed=(opening_name != prev_op_name),
+                pieces_left=pieces_left_ai,
+            )
+            if ai_line is not None:
+                bot_message = ai_line
+
+            extra_tag = ""
+            if res.memory_note == "avoided":
+                extra_tag = f" {MAGENTA}· ingat pertemuan dulu{RESET}"
+            elif res.memory_note == "trap":
+                extra_tag = f" {MAGENTA}· siap menguji kamu{RESET}"
+            elif res.from_book:
+                extra_tag = f" {DIM}· langkah buku{RESET}"
+            status_note = f"{CYAN}➜ {active_bot.name} melangkah: {BOLD}{bot_san}{RESET}{extra_tag}"
             needs_render = True
             continue
 
@@ -1138,7 +1157,7 @@ def play_match(
             continue
 
         if cmd in ("h", "hint"):
-            sys.stdout.write(f"{DIM}Menghitung saran terbaik + PV...{RESET}")
+            sys.stdout.write(f"{DIM}Mencari saran langkah terbaik...{RESET}")
             sys.stdout.flush()
             hint_res = ai.get_hint(board)
             if sys.stdout.isatty():
@@ -1148,17 +1167,17 @@ def play_match(
             if hint_res.move:
                 h_san = board.move_to_san(hint_res.move)
                 pv_sans = ai.extract_pv(board, hint_res.move, max_len=5)
-                pv_str = f"\n  {DIM}Garis utama (PV): {' → '.join(pv_sans)}{RESET}" if len(pv_sans) > 1 else ""
+                pv_str = f"\n  {DIM}Rencana lanjutan: {' → '.join(pv_sans)}{RESET}" if len(pv_sans) > 1 else ""
                 ev_bar = render_eval_bar(hint_res.score_cp, board.turn)
-                src = "book" if hint_res.from_book else f"depth {hint_res.depth}"
+                src = "langkah buku" if hint_res.from_book else "rekomendasi"
                 highlight_origin = move_from(hint_res.move)
                 highlight_targets = {move_to(hint_res.move)}
                 status_note = f"{BOLD}{GREEN}💡 Saran terbaik: {h_san}{RESET} {DIM}({src}){RESET}  {ev_bar}{pv_str}"
                 needs_render = True
             continue
 
-        if cmd in ("coach", "analyze", "analisa", "tips"):
-            sys.stdout.write(f"{DIM}🎓 Coach sedang menganalisis posisi...{RESET}")
+        if cmd in ("coach", "saran", "analyze", "analisa", "tips"):
+            sys.stdout.write(f"{DIM}Pelatih sedang memperhatikan papan...{RESET}")
             sys.stdout.flush()
             adv = ai.coach_advice(board)
             if sys.stdout.isatty():
@@ -1173,14 +1192,14 @@ def play_match(
             tips_list = list(adv["tips"])
             ev_bar = render_eval_bar(int(adv["score_cp"]), board.turn)
             note_lines = [
-                f"{BOLD}{CYAN}🎓 TACTICAL COACH{RESET}  {ev_bar}",
-                f"  Rekomendasi: {BOLD}{GREEN}{adv['best_san']}{RESET}"
-                + (f"  {DIM}PV: {' → '.join(pv_list)}{RESET}" if len(pv_list) > 1 else ""),
+                f"{BOLD}{CYAN}♟ SARAN PELATIH{RESET}  {ev_bar}",
+                f"  Coba langkah: {BOLD}{GREEN}{adv['best_san']}{RESET}"
+                + (f"  {DIM}Lanjutan: {' → '.join(pv_list)}{RESET}" if len(pv_list) > 1 else ""),
             ]
             for tip in tips_list:
                 note_lines.append(f"  {YELLOW}• {tip}{RESET}")
             if not tips_list:
-                note_lines.append(f"  {DIM}• Posisi solid — fokus kuasai pusat & aktifkan bidakmu.{RESET}")
+                note_lines.append(f"  {DIM}• Posisi cukup rapi — jaga pusat dan kembangkan perwira.{RESET}")
             status_note = "\n".join(note_lines)
             needs_render = True
             continue
@@ -1201,18 +1220,18 @@ def play_match(
                 show_eval = arg.lower() == "on"
                 profile["show_eval"] = show_eval
                 save_profile(profile)
-                status_note = f"{CYAN}Live Eval Bar: {'ON' if show_eval else 'OFF'}{RESET}"
+                status_note = f"{CYAN}Bar Posisi: {'NYALA' if show_eval else 'MATI'}{RESET}"
                 needs_render = True
             else:
                 ev_res = ai.get_hint(board, think_time=0.50)
                 last_eval_cp = ev_res.score_cp
                 last_eval_side = board.turn
                 pv_sans = ai.extract_pv(board, ev_res.move, max_len=5) if ev_res.move else []
-                pv_txt = f"  {DIM}PV: {' → '.join(pv_sans)}{RESET}" if pv_sans else ""
-                print(f"Evaluasi posisi: {render_eval_bar(ev_res.score_cp, board.turn)}{pv_txt}")
+                pv_txt = f"  {DIM}Lanjutan: {' → '.join(pv_sans)}{RESET}" if pv_sans else ""
+                print(f"Keunggulan posisi: {render_eval_bar(ev_res.score_cp, board.turn)}{pv_txt}")
             continue
 
-        if cmd == "dna":
+        if cmd in ("dna", "gaya", "profil"):
             print()
             print(render_dna_lab(profile))
             print()
@@ -1374,9 +1393,11 @@ def play_match(
 
         captured_by_player = board.squares[move_to(mv)]
         mv_flag = move_flag(mv)
-        is_cap = captured_by_player != EMPTY or mv_flag == FLAG_EN_PASSANT
+        is_ep_player = mv_flag == FLAG_EN_PASSANT
+        is_cap = captured_by_player != EMPTY or is_ep_player
         is_castle = mv_flag in (FLAG_CASTLE_KING, FLAG_CASTLE_QUEEN)
         is_promo = move_promo(mv) != 0
+        prev_op_name = opening_name
 
         player_san = board.move_to_san(mv)
         board.make_move(mv, record_san=True)
@@ -1385,6 +1406,7 @@ def play_match(
 
         last_eval_cp = player_eval_after
         last_eval_side = player_color
+        eval_white_cp = player_eval_after if player_color == WHITE else -player_eval_after
 
         grade = tracker.record_player_move(
             ply=len(board.move_history),
@@ -1396,6 +1418,8 @@ def play_match(
             is_check=gave_check,
             is_castle=is_castle,
             is_promo=is_promo,
+            eval_white_cp=eval_white_cp,
+            player_eval_after=player_eval_after,
         )
 
         if cp_loss <= 35:
@@ -1406,60 +1430,72 @@ def play_match(
         if gave_check:
             ring_bell(sound_bell)
 
-
         tier_notice = ""
         if is_adaptive and adaptive is not None:
             adaptive_delta, new_tier = adaptive.update_after_player_move(cp_loss, len(board.move_history))
             active_bot = adaptive.profile()
             if new_tier is not None:
                 direction = "naik" if adaptive_delta >= 0 else "turun"
-                tier_notice = f" {MAGENTA}🧬 Adaptive {direction} ke tier {new_tier.name} (Elo {adaptive.elo})!{RESET}"
+                tier_notice = f"\n  {MAGENTA}★ Level adaptif {direction} setara {new_tier.name} (Elo {adaptive.elo})!{RESET}"
 
+        pieces_left_pl = sum(1 for sq in board.squares if sq != EMPTY)
+        p_line = react_to_player_move(
+            bot=active_bot,
+            san=player_san,
+            ply=len(board.move_history),
+            captured_piece=PAWN if is_ep_player else captured_by_player,
+            is_ep=is_ep_player,
+            is_castle_k=(mv_flag == FLAG_CASTLE_KING),
+            is_castle_q=(mv_flag == FLAG_CASTLE_QUEEN),
+            promo_piece=move_promo(mv),
+            gave_check=gave_check,
+            grade_code=grade.code,
+            opening_name=opening_name,
+            opening_just_changed=(opening_name != prev_op_name),
+            from_arc=from_arc,
+            pieces_left=pieces_left_pl,
+        )
+        if p_line is not None:
+            bot_message = p_line
 
-        if gave_check:
-            bot_message = active_bot.say("in_check")
-        elif cp_loss >= 200:
-            bot_message = active_bot.say("blunder_player")
-        elif captured_by_player != EMPTY and abs(captured_by_player) >= KNIGHT:
-            bot_message = active_bot.say("captured")
-        elif cp_loss <= 15 and len(board.move_history) >= 8 and random.random() < 0.35:
-            bot_message = active_bot.say("good_player")
-
-        grade_tag = f" {grade.color}[{grade.symbol} {grade.label}]{RESET}" if show_grades else ""
         if from_arc:
             rem_txt = f"sisa {len(arc_queue)}" if arc_queue else "selesai"
             arc_tag = f"{MAGENTA}⚡ [ARC · {rem_txt}]{RESET} "
         else:
             arc_tag = ""
-        status_note = f"{arc_tag}{GREEN}✔ Langkahmu: {BOLD}{player_san}{RESET}{grade_tag}{tier_notice}"
+
+        if show_grades:
+            callout = format_move_callout(grade, player_san, best_san)
+            status_note = f"{arc_tag}{callout}{tier_notice}"
+        else:
+            status_note = f"{arc_tag}{GREEN}✔ Langkahmu: {BOLD}{player_san}{RESET}{tier_notice}"
         needs_render = True
 
 
 def run_gauntlet_mode(ai: ChessAI, profile: Dict[str, Any]) -> str:
-
     while True:
         stage = int(profile.get("gauntlet_stage", 0))
-        if stage >= len(BOTS):
+        if stage >= len(CORE_BOTS):
             stage = 0
             profile["gauntlet_stage"] = 0
             save_profile(profile)
 
         clear_screen()
         print(f"{BOLD}{MAGENTA}╔══════════════════════════════════════════════╗{RESET}")
-        print(f"{BOLD}{MAGENTA}║{RESET}     {BOLD}{WHITE_FG}🔥  GAUNTLET BOSS RUSH (10 BOTS){RESET}        {BOLD}{MAGENTA}║{RESET}")
+        print(f"{BOLD}{MAGENTA}║{RESET}        {BOLD}{WHITE_FG}♟  TURNAMEN BERUNTUN (10 BOT){RESET}         {BOLD}{MAGENTA}║{RESET}")
         print(f"{BOLD}{MAGENTA}╚══════════════════════════════════════════════╝{RESET}")
         print()
-        for idx, b in enumerate(BOTS):
+        for idx, b in enumerate(CORE_BOTS):
             if idx < stage:
-                mark = f"{GREEN}✔ CLEARED{RESET}"
+                mark = f"{GREEN}✔ MENANG{RESET}"
             elif idx == stage:
-                mark = f"{BOLD}{YELLOW}◀ NEXT BOSS{RESET}"
+                mark = f"{BOLD}{YELLOW}◀ LAWAN BERIKUTNYA{RESET}"
             else:
-                mark = f"{GRAY}🔒 Locked{RESET}"
-            print(f"  Stage {idx + 1:>2}/10 · {b.name:<10} (Elo {b.elo:>4})  {mark}")
+                mark = f"{GRAY}🔒 Terkunci{RESET}"
+            print(f"  Babak {idx + 1:>2}/10 · {b.name:<10} (Elo {b.elo:>4})  {mark}")
         print()
         ans = _safe_input(
-            f"[{BOLD}Enter{RESET}] Lawan {BOLD}{BOTS[stage].name}{RESET}  [{BOLD}R{RESET}] Reset Stage  [{BOLD}M{RESET}] Menu: "
+            f"[{BOLD}Enter{RESET}] Lawan {BOLD}{CORE_BOTS[stage].name}{RESET}  [{BOLD}R{RESET}] Ulang  [{BOLD}M{RESET}] Menu: "
         )
         if ans is None:
             return "quit"
@@ -1479,7 +1515,7 @@ def run_gauntlet_mode(ai: ChessAI, profile: Dict[str, Any]) -> str:
             ai=ai,
             profile=profile,
             player_color=color,
-            bot=BOTS[stage],
+            bot=CORE_BOTS[stage],
             is_adaptive=False,
             gauntlet_stage=stage,
         )
@@ -1490,19 +1526,19 @@ def run_gauntlet_mode(ai: ChessAI, profile: Dict[str, Any]) -> str:
 
         if outcome == "win":
             stage += 1
-            if stage >= len(BOTS):
+            if stage >= len(CORE_BOTS):
                 profile["gauntlet_stage"] = 0
                 profile["gauntlet_clears"] = int(profile.get("gauntlet_clears", 0)) + 1
                 unlock_achievement(profile, "gauntlet_clear")
                 save_profile(profile)
-                print(f"\n{BOLD}{YELLOW}🏆🔥 SELAMAT!! KAMU MENAMATKAN GAUNTLET BOSS RUSH (10/10)!! 🔥🏆{RESET}")
+                print(f"\n{BOLD}{YELLOW}🏆🔥 SELAMAT!! KAMU JUARA TURNAMEN 10 BOT (10/10)!! 🔥🏆{RESET}")
                 _safe_input("Tekan Enter untuk kembali ke menu...")
                 return "menu"
             else:
                 profile["gauntlet_stage"] = stage
                 save_profile(profile)
         elif outcome == "loss":
-            print(f"{RED}Kamu gugur di Stage {stage + 1} ({BOTS[stage].name}). Coba lagi kapan aja!{RESET}")
+            print(f"{RED}Kamu gugur di Babak {stage + 1} ({CORE_BOTS[stage].name}). Coba lagi kapan saja!{RESET}")
 
 def _build_arg_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
@@ -1513,8 +1549,8 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     p.add_argument("--ascii", action="store_true", help="Gunakan tampilan papan ASCII berwarna.")
     p.add_argument("--plain", action="store_true", help="Gunakan tampilan papan ASCII klasik.")
     p.add_argument("--theme", choices=tuple(THEME_BY_ID.keys()), default=None, help="Pilih tema warna papan.")
-    p.add_argument("--bot", type=str, default=None, help="Langsung lawan bot nomor 1-9 atau 0 (misal: --bot 4).")
-    p.add_argument("--adaptive", nargs="?", const="default", default=None, help="Langsung main Adaptive Evolving (global atau per-bot 0-9, mis: --adaptive 4).")
+    p.add_argument("--bot", type=str, default=None, help="Langsung lawan bot nomor 0-19 (misal: --bot 4 atau --bot 13).")
+    p.add_argument("--adaptive", nargs="?", const="default", default=None, help="Langsung main Adaptif (utama atau per-bot 0-19, mis: --adaptive 4).")
     p.add_argument("--puzzles", action="store_true", help="Langsung masuk mode Tactical Puzzles.")
     p.add_argument("--gauntlet", action="store_true", help="Langsung masuk mode Gauntlet Boss Rush.")
     p.add_argument("--color", choices=("white", "black", "random"), default=None, help="Pilih warna langsung.")
@@ -1602,6 +1638,48 @@ def main(argv: Optional[List[str]] = None) -> int:
                 if action == "quit":
                     print(f"{DIM}Sampai jumpa di papan catur!{RESET}")
                     return 0
+                if action == "extra_bots":
+                    clear_screen()
+                    print(render_extra_bots_menu(profile))
+                    print()
+                    sub_raw = _safe_input(f"{BOLD}{YELLOW}Pilih Bot Ekstra (10-19 / A 10-19 / Enter=Kembali): {RESET}")
+                    if sub_raw is None:
+                        print(f"{DIM}Sampai jumpa di papan catur!{RESET}")
+                        return 0
+                    sub_clean = sub_raw.strip()
+                    if not sub_clean:
+                        break
+                    sub_act, sub_pay = _parse_menu_selection(sub_clean, profile)
+                    if sub_act == "bot":
+                        selected_bot = sub_pay
+                        print(
+                            f"\n{selected_bot.color_code}[✦]{RESET} Kamu memilih {BOLD}{selected_bot.name}{RESET} "
+                            f"(Elo {selected_bot.elo} · {selected_bot.title})"
+                        )
+                        break
+                    if sub_act == "adaptive_bot":
+                        anchor_b, fresh = sub_pay
+                        is_adaptive = True
+                        adaptive_ctrl, selected_bot = _spawn_adaptive_bot(profile, anchor_b, fresh=fresh)
+                        stage, _ = adaptive_ctrl.brain.stage_info()
+                        reset_note = f" {YELLOW}(Reset ke Elo {anchor_b.elo}){RESET}" if fresh else ""
+                        print(
+                            f"\n{MAGENTA}★ Lawan Adaptif: {anchor_b.color_code}[✦]{RESET} "
+                            f"{BOLD}Adaptif·{anchor_b.name}{RESET}{reset_note}"
+                        )
+                        print(
+                            f"  Elo Saat Ini: {BOLD}{adaptive_ctrl.elo}{RESET} · "
+                            f"{CYAN}{stage}{RESET} · Gaya: {YELLOW}{adaptive_ctrl.counter_trait}{RESET}"
+                        )
+                        break
+                    if sub_act == "adaptive_global":
+                        is_adaptive = True
+                        start_elo = int(sub_pay)
+                        adaptive_ctrl = EvolvingAdaptiveController(start_elo, get_dna(profile), get_brain(profile))
+                        selected_bot = adaptive_ctrl.profile()
+                        break
+                    print(f"{YELLOW}Pilihan tidak ditemukan, kembali ke menu utama.{RESET}")
+                    break
                 if action == "records":
                     clear_screen()
                     print(render_records(profile))
@@ -1691,15 +1769,14 @@ def main(argv: Optional[List[str]] = None) -> int:
                     is_adaptive = True
                     adaptive_ctrl, selected_bot = _spawn_adaptive_bot(profile, anchor_b, fresh=fresh)
                     stage, _ = adaptive_ctrl.brain.stage_info()
-                    reset_note = f" {YELLOW}(Reset ke Base Elo {anchor_b.elo}){RESET}" if fresh else ""
+                    reset_note = f" {YELLOW}(Reset ke Elo {anchor_b.elo}){RESET}" if fresh else ""
                     print(
-                        f"\n{MAGENTA}🧬 Per-Bot Adaptive Aktif: {anchor_b.color_code}[✦]{RESET} "
-                        f"{BOLD}Adaptive·{anchor_b.name}{RESET}{reset_note}"
+                        f"\n{MAGENTA}★ Lawan Adaptif: {anchor_b.color_code}[✦]{RESET} "
+                        f"{BOLD}Adaptif·{anchor_b.name}{RESET}{reset_note}"
                     )
                     print(
-                        f"  Elo Saat Ini: {BOLD}{adaptive_ctrl.elo}{RESET} (Base {anchor_b.elo}) · "
-                        f"{CYAN}Gen {adaptive_ctrl.brain.generation} {stage}{RESET} · "
-                        f"Strategi: {YELLOW}{adaptive_ctrl.counter_trait}{RESET}"
+                        f"  Elo Saat Ini: {BOLD}{adaptive_ctrl.elo}{RESET} (Dasar {anchor_b.elo}) · "
+                        f"{CYAN}{stage}{RESET} · Gaya: {YELLOW}{adaptive_ctrl.counter_trait}{RESET}"
                     )
                     break
                 if action == "adaptive_global":
@@ -1712,9 +1789,9 @@ def main(argv: Optional[List[str]] = None) -> int:
                     base_tier = nearest_bot_for_elo(start_elo)
                     stage, _ = brain.stage_info()
                     print(
-                        f"\n{MAGENTA}🧬 Mode Adaptive Global aktif!{RESET} "
-                        f"Mulai dari Elo {BOLD}{start_elo}{RESET} ({base_tier.name} tier) · "
-                        f"{CYAN}Gen {brain.generation} {stage}{RESET} · Strategi: {YELLOW}{adaptive_ctrl.counter_trait}{RESET}"
+                        f"\n{MAGENTA}★ Mode Adaptif Utama aktif!{RESET} "
+                        f"Mulai dari Elo {BOLD}{start_elo}{RESET} (setara {base_tier.name}) · "
+                        f"{CYAN}{stage}{RESET} · Gaya: {YELLOW}{adaptive_ctrl.counter_trait}{RESET}"
                     )
                     break
                 print(f"{RED}{payload}{RESET}")

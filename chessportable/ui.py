@@ -23,7 +23,7 @@ from .board import (
     move_from,
     move_to,
 )
-from .bots import BOTS, BotProfile
+from .bots import BOTS, CORE_BOTS, EXTRA_BOTS, BotProfile
 from .evolving import EvolvingBrain, MatchTracker, PlayerDNA
 from .storage import (
     ACHIEVEMENTS,
@@ -158,51 +158,81 @@ def render_main_menu(profile: Dict[str, Any]) -> str:
     lines.append("")
     lines.append(f"{BOLD}{WHITE_FG}Hi! Choose your ai!{RESET}")
 
-    for bot in BOTS:
+    for bot in CORE_BOTS:
         defeated = is_bot_defeated(profile, bot.bot_id)
         badge = f"{BOLD}{YELLOW}[★]{RESET}" if defeated else f"{bot.color_code}[✦]{RESET}"
         rec = get_bot_record_str(profile, bot.bot_id)
         rec_part = f" {DIM}{rec}{RESET}" if rec else ""
-
         evo_part = ""
         ba = bot_adaptive_map.get(bot.bot_id)
         if isinstance(ba, dict):
             bgen = int(ba.get("brain", {}).get("generation", 1))
             belo = int(ba.get("elo", bot.elo))
             if bgen > 1 or belo != bot.elo:
-                evo_part = f" {MAGENTA}🧬A:{belo}(G{bgen}){RESET}"
+                evo_part = f" {MAGENTA}· Adaptif {belo}{RESET}"
         lines.append(
             f"({BOLD}{bot.key}{RESET}) {badge} {BOLD}{bot.name}{RESET} - Elo {bot.elo}{rec_part}{evo_part}"
         )
 
     lines.append(f"{CYAN}Please Type A for adaptive version{RESET}")
     lines.append(
-        f"{DIM}Adaptive: {RESET}{BOLD}{CYAN}A{RESET}{DIM} (Global Elo {adaptive_elo} · 🧬G{brain.generation} {stage})  |  "
-        f"{RESET}{BOLD}{CYAN}A 0-9{RESET}{DIM} (Adaptive tiap bot!)  |  {RESET}{BOLD}A list{RESET}"
+        f"{DIM}Bot Lain : {RESET}{BOLD}{YELLOW}B{RESET}{DIM} (10 Bot Ekstra: Budi 300 .. Noctis 3600 · Total {len(BOTS)} Bot!){RESET}"
     )
     lines.append(
-        f"{DIM}Mode: {RESET}{BOLD}{MAGENTA}G{RESET}{DIM}=Gauntlet({gauntlet_stage}/10)  "
+        f"{DIM}Adaptif  : {RESET}{BOLD}{CYAN}A{RESET}{DIM} (Elo {adaptive_elo} · {stage})  |  "
+        f"{RESET}{BOLD}{CYAN}A 0-19{RESET}{DIM} (Adaptif tiap bot)  |  {RESET}{BOLD}A list{RESET}"
+    )
+    lines.append(
+        f"{DIM}Menu     : {RESET}{BOLD}{MAGENTA}G{RESET}{DIM}=Turnamen({gauntlet_stage}/10)  "
         f"{RESET}{BOLD}{YELLOW}P{RESET}{DIM}=Puzzle({puzzle_elo})  "
-        f"{RESET}{BOLD}{GREEN}2P{RESET}{DIM}=2-Player  "
-        f"{RESET}{BOLD}D{RESET}{DIM}=DNA  "
-        f"{RESET}{BOLD}T{RESET}{DIM}=Tema&Jam({tc_label.split()[0]})  "
-        f"{RESET}{BOLD}L{RESET}{DIM}=Load  "
+        f"{RESET}{BOLD}{GREEN}2P{RESET}{DIM}=Berdua  "
+        f"{RESET}{BOLD}D{RESET}{DIM}=Gaya Main  "
+        f"{RESET}{BOLD}T{RESET}{DIM}=Tema({tc_label.split()[0]})  "
+        f"{RESET}{BOLD}L{RESET}{DIM}=Lanjut  "
         f"{RESET}{BOLD}R{RESET}{DIM}=Rekor  "
         f"{RESET}{BOLD}Q{RESET}{DIM}=Keluar{RESET}"
     )
     return "\n".join(lines)
 
 
-def render_adaptive_roster(profile: Dict[str, Any]) -> str:
+def render_extra_bots_menu(profile: Dict[str, Any]) -> str:
+    theme = get_theme(profile.get("theme", "sage"))
+    bot_adaptive_map = profile.get("bot_adaptive", {})
+    lines: List[str] = [
+        f"{BOLD}{theme.accent}╔══════════════════════════════════════════════════╗{RESET}",
+        f"{BOLD}{theme.accent}║{RESET}      {BOLD}{WHITE_FG}♟  BOT KLUB & LEGENDA (10 BOT EKSTRA){RESET}       {BOLD}{theme.accent}║{RESET}",
+        f"{BOLD}{theme.accent}╚══════════════════════════════════════════════════╝{RESET}",
+        "",
+    ]
+    for bot in EXTRA_BOTS:
+        defeated = is_bot_defeated(profile, bot.bot_id)
+        badge = f"{BOLD}{YELLOW}[★]{RESET}" if defeated else f"{bot.color_code}[✦]{RESET}"
+        rec = get_bot_record_str(profile, bot.bot_id)
+        rec_part = f" {DIM}{rec}{RESET}" if rec else ""
+        evo_part = ""
+        ba = bot_adaptive_map.get(bot.bot_id)
+        if isinstance(ba, dict):
+            bgen = int(ba.get("brain", {}).get("generation", 1))
+            belo = int(ba.get("elo", bot.elo))
+            if bgen > 1 or belo != bot.elo:
+                evo_part = f" {MAGENTA}· Adaptif {belo}{RESET}"
+        lines.append(
+            f"({BOLD}{bot.key}{RESET}) {badge} {BOLD}{bot.name:<11}{RESET} - Elo {bot.elo:<4} {DIM}({bot.title}){RESET}{rec_part}{evo_part}"
+        )
+    lines.append("")
+    lines.append(f"{DIM}Ketik nomor 10-19 atau nama bot untuk tanding · 'A 10'..'A 19' untuk versi Adaptif · Enter kembali.{RESET}")
+    return "\n".join(lines)
 
+
+def render_adaptive_roster(profile: Dict[str, Any]) -> str:
     brain = get_brain(profile)
     stage, _ = brain.stage_info()
     g_elo = int(profile.get("adaptive_elo", 1000))
     g_peak = int(profile.get("adaptive_peak", 1000))
 
     lines: List[str] = [
-        f"{BOLD}{CYAN}═══ ADAPTIVE EVOLVING ROSTER (A & A 0-9) ═══{RESET}",
-        f"  {BOLD}{CYAN}A{RESET}      Global Adaptive · Elo {BOLD}{g_elo}{RESET} (Peak {g_peak}) · 🧬 Gen {brain.generation} {stage}",
+        f"{BOLD}{CYAN}═══ DAFTAR LAWAN ADAPTIF (A & A 0-19) ═══{RESET}",
+        f"  {BOLD}{CYAN}A{RESET}      Adaptif Utama · Elo {BOLD}{g_elo}{RESET} (Tertinggi {g_peak}) · {stage}",
         "",
     ]
     for bot in BOTS:
@@ -213,35 +243,86 @@ def render_adaptive_roster(profile: Dict[str, Any]) -> str:
         elo_now = int(st.get("elo", bot.elo))
         delta = elo_now - bot.elo
         d_str = f"{GREEN}+{delta}{RESET}" if delta > 0 else (f"{RED}{delta}{RESET}" if delta < 0 else f"{DIM}±0{RESET}")
-        rec = f"{GREEN}{w}W{RESET}-{YELLOW}{d}D{RESET}-{RED}{l}L{RESET}" if (w + d + l) else f"{GRAY}Baru{RESET}"
+        rec = f"{GREEN}{w}M{RESET}-{YELLOW}{d}S{RESET}-{RED}{l}K{RESET}" if (w + d + l) else f"{GRAY}Baru{RESET}"
         lines.append(
-            f"  {BOLD}{CYAN}A {bot.key}{RESET}    {bot.color_code}[✦]{RESET} {BOLD}{bot.name:<10}{RESET} "
-            f"Elo {BOLD}{elo_now:>4}{RESET} ({d_str}) · 🧬G{b_brain.generation} {b_stage:<9} {rec}"
+            f"  {BOLD}{CYAN}A {bot.key:<2}{RESET}   {bot.color_code}[✦]{RESET} {BOLD}{bot.name:<11}{RESET} "
+            f"Elo {BOLD}{elo_now:>4}{RESET} ({d_str}) · {b_stage:<12} {rec}"
         )
     lines.append("")
-    lines.append(f"{DIM}Ketik 'A <0-9>' buat tanding (mis: A 1, A 4, A 0) atau 'A <0-9> fresh' buat reset bot tsb.{RESET}")
+    lines.append(f"{DIM}Ketik 'A <0-19>' untuk tanding (mis: A 4, A 13, A 0) atau 'A <no> fresh' untuk reset.{RESET}")
     return "\n".join(lines)
 
-def render_move_review(tracker: MatchTracker) -> str:
 
+def render_eval_graph(eval_history: List[int], width: int = 32) -> List[str]:
+    if len(eval_history) < 2:
+        return []
+    target_w = max(20, min(width, len(eval_history) * 2)) if len(eval_history) < width else width
+    step = (len(eval_history) - 1) / float(target_w - 1)
+    samples = [eval_history[round(i * step)] for i in range(target_w)]
+
+    def bucket(cp: int) -> int:
+        if cp >= 250:
+            return 2
+        if cp >= 65:
+            return 1
+        if cp <= -250:
+            return -2
+        if cp <= -65:
+            return -1
+        return 0
+
+    cols = [bucket(v) for v in samples]
+    labels = {2: "+3", 1: "+1", 0: " 0", -1: "-1", -2: "-3"}
+    rows: List[str] = [f"  {DIM}Grafik Momentum (Putih ▲ / Hitam ▼):{RESET}"]
+    for lv in (2, 1, 0, -1, -2):
+        chars: List[str] = []
+        for b in cols:
+            if lv == 0:
+                if b > 0:
+                    chars.append(f"{WHITE_FG}▀{RESET}")
+                elif b < 0:
+                    chars.append(f"{CYAN}▄{RESET}")
+                else:
+                    chars.append(f"{GRAY}─{RESET}")
+            elif lv > 0:
+                if b >= lv:
+                    chars.append(f"{WHITE_FG}█{RESET}")
+                else:
+                    chars.append(" ")
+            else:
+                if b <= lv:
+                    chars.append(f"{CYAN}█{RESET}")
+                else:
+                    chars.append(" ")
+        rows.append(f"  {DIM}{labels[lv]} │{RESET}{''.join(chars)}")
+    pad = max(1, len(cols) - 9)
+    rows.append(f"  {DIM}    Awal{' ' * pad}Akhir{RESET}")
+    return rows
+
+
+def render_move_review(tracker: MatchTracker) -> str:
     if not tracker.player_moves:
-        return f"{DIM}Belum ada langkah untuk direview.{RESET}"
+        return f"{DIM}Belum ada langkah untuk dilihat.{RESET}"
     lines: List[str] = [
-        f"{BOLD}{CYAN}═══ REVIEW LANGKAH PER LANGKAH ═══{RESET}",
-        f"  {DIM}{'No':>3}  {'Langkah':<8} {'Grade':<15} {'CPL':>4}  Saran Terbaik{RESET}",
+        f"{BOLD}{CYAN}═══ CATATAN LANGKAH PER LANGKAH ═══{RESET}",
+        f"  {DIM}{'No':>3}  {'Langkah':<8} {'Penilaian':<15} {'Posisi':>6}  Saran Lebih Baik{RESET}",
     ]
     for m in tracker.player_moves:
         mnum = (m.ply + 1) // 2
-        g_txt = f"{m.grade.color}{m.grade.symbol} {m.grade.label}{RESET}"
+        vis_g = f"{m.grade.symbol} {m.grade.label}"
+        pad_g = " " * max(1, 15 - len(vis_g))
+        g_txt = f"{m.grade.color}{vis_g}{RESET}{pad_g}"
+        ev_str = f"{m.eval_white_cp / 100.0:+.1f}"
         best_note = ""
         if m.cp_loss >= 45 and m.best_san and m.best_san != m.san:
-            best_note = f"{GREEN}→ {m.best_san}{RESET}"
+            best_note = f"{GREEN}→ coba {m.best_san}{RESET}"
         elif m.cp_loss <= 18:
-            best_note = f"{DIM}✓ top{RESET}"
+            best_note = f"{DIM}✓ pas banget{RESET}"
         lines.append(
-            f"  {mnum:>3}. {BOLD}{m.san:<8}{RESET} {g_txt:<24} {m.cp_loss:>4}  {best_note}"
+            f"  {mnum:>3}. {BOLD}{m.san:<8}{RESET} {g_txt}{ev_str:>6}  {best_note}"
         )
     return "\n".join(lines)
+
 
 def render_dna_lab(profile: Dict[str, Any]) -> str:
     dna = get_dna(profile)
@@ -252,41 +333,40 @@ def render_dna_lab(profile: Dict[str, Any]) -> str:
 
     lines: List[str] = [
         f"{BOLD}{MAGENTA}╔══════════════════════════════════════════════╗{RESET}",
-        f"{BOLD}{MAGENTA}║{RESET}     {BOLD}{WHITE_FG}🧬  PLAYER DNA & EVOLVING AI LAB{RESET}         {BOLD}{MAGENTA}║{RESET}",
+        f"{BOLD}{MAGENTA}║{RESET}          {BOLD}{WHITE_FG}♟  CATATAN GAYA MAINMU{RESET}              {BOLD}{MAGENTA}║{RESET}",
         f"{BOLD}{MAGENTA}╚══════════════════════════════════════════════╝{RESET}",
         "",
-        f"{BOLD}{WHITE_FG}Profil Gaya Mainmu:{RESET} {BOLD}{CYAN}{arch_name}{RESET}",
+        f"{BOLD}{WHITE_FG}Karakter Mainmu:{RESET} {BOLD}{CYAN}{arch_name}{RESET}",
         f"  {DIM}{arch_desc}{RESET}",
-        f"  Game Dianalisis : {BOLD}{dna.games_analyzed}{RESET}  ·  Akurasi Rata-rata: {BOLD}{GREEN}{dna.avg_accuracy:.1f}%{RESET}",
+        f"  Total Pertandingan : {BOLD}{dna.games_analyzed}{RESET}  ·  Akurasi Rata-rata: {BOLD}{GREEN}{dna.avg_accuracy:.1f}%{RESET}",
         "",
-        f"  Agresi    {render_stat_bar(dna.aggression, 100, 18, RED)} {dna.aggression:5.1f}",
-        f"  Posisional{render_stat_bar(dna.positional, 100, 18, BLUE)} {dna.positional:5.1f}",
-        f"  Taktik    {render_stat_bar(dna.tactical, 100, 18, YELLOW)} {dna.tactical:5.1f}",
-        f"  Rokade    {render_stat_bar(dna.castle_rate, 100, 18, GREEN)} {dna.castle_rate:5.1f}%",
+        f"  Serangan   {render_stat_bar(dna.aggression, 100, 18, RED)} {dna.aggression:5.1f}",
+        f"  Pertahanan {render_stat_bar(dna.positional, 100, 18, BLUE)} {dna.positional:5.1f}",
+        f"  Ketajaman  {render_stat_bar(dna.tactical, 100, 18, YELLOW)} {dna.tactical:5.1f}",
+        f"  Rokade     {render_stat_bar(dna.castle_rate, 100, 18, GREEN)} {dna.castle_rate:5.1f}%",
         "",
-        f"  Fase Terkuat : {GREEN}{dna.strongest_phase()}{RESET}   ·   "
-        f"Titik Lemah : {RED}{dna.weakest_phase()}{RESET}",
-        f"  {DIM}ACPL -> Opening: {dna.opening_acpl:.0f} | Midgame: {dna.middlegame_acpl:.0f} | Endgame: {dna.endgame_acpl:.0f}{RESET}",
+        f"  Bagian Terkuat : {GREEN}{dna.strongest_phase()}{RESET}   ·   "
+        f"Perlu Diasah : {RED}{dna.weakest_phase()}{RESET}",
     ]
 
-    top_op = dna.top_openings(3)
+    top_op = dna.top_openings(4)
     if top_op:
         lines.append("")
-        lines.append(f"{BOLD}Pembukaan Favoritmu:{RESET}")
+        lines.append(f"{BOLD}Pembukaan Andalanmu:{RESET}")
         for sig, cnt in top_op:
-            lines.append(f"  • {CYAN}{sig}{RESET} {DIM}({cnt}x){RESET}")
+            lines.append(f"  • {CYAN}{sig}{RESET} {DIM}({cnt}x dimainkan){RESET}")
 
     avoid_cnt = sum(len(v) for v in brain.avoid_memory.values())
     trap_cnt = sum(len(v) for v in brain.trap_memory.values())
     lines.extend([
         "",
-        f"{BOLD}{CYAN}═══ OTAK EVOLVING AI ═══{RESET}",
-        f"  Generasi      : {BOLD}{MAGENTA}Gen {brain.generation} — {stage_name}{RESET} {DIM}({stage_desc}){RESET}",
-        f"  Strategi Lawan: {BOLD}{YELLOW}{trait}{RESET}",
-        f"  Memori Aktif  : {GREEN}{avoid_cnt}{RESET} pola jebakan dihindari · {RED}{trap_cnt}{RESET} senjata taktis disimpan",
-        f"  Total Pelajaran: {BOLD}{brain.total_lessons}{RESET} pola telah dipelajari dari pertandinganmu",
+        f"{BOLD}{CYAN}═══ CATATAN LAWAN ADAPTIF ═══{RESET}",
+        f"  Kedekatan     : {BOLD}{MAGENTA}{stage_name}{RESET} {DIM}({stage_desc}){RESET}",
+        f"  Gaya Balasan  : {BOLD}{YELLOW}{trait}{RESET}",
+        f"  Ingatan Lawan : {GREEN}{avoid_cnt}{RESET} jebakanmu sudah dihafal · {RED}{trap_cnt}{RESET} posisi sulit dicatat",
     ])
     return "\n".join(lines)
+
 
 def render_records(profile: Dict[str, Any]) -> str:
     lines: List[str] = []
@@ -300,33 +380,34 @@ def render_records(profile: Dict[str, Any]) -> str:
     g_stage = profile.get("gauntlet_stage", 0)
     g_clears = profile.get("gauntlet_clears", 0)
 
-    lines.append(f"  Bot Dikalahkan : {BOLD}{GREEN}{defeated_count}/{len(BOTS)}{RESET}   ·   Gauntlet: {MAGENTA}{g_stage}/10{RESET} (Clear: {g_clears}x)")
+    lines.append(f"  Bot Dikalahkan : {BOLD}{GREEN}{defeated_count}/{len(BOTS)}{RESET}   ·   Turnamen: {MAGENTA}{g_stage}/10{RESET} (Juara: {g_clears}x)")
     lines.append(
-        f"  Adaptive Elo   : {BOLD}{CYAN}{ad_elo}{RESET} (Peak {YELLOW}{ad_peak}{RESET}) · "
-        f"{ad_st.get('wins', 0)}W-{ad_st.get('draws', 0)}D-{ad_st.get('losses', 0)}L"
+        f"  Rating Adaptif : {BOLD}{CYAN}{ad_elo}{RESET} (Tertinggi {YELLOW}{ad_peak}{RESET}) · "
+        f"{ad_st.get('wins', 0)}M-{ad_st.get('draws', 0)}S-{ad_st.get('losses', 0)}K"
     )
-    lines.append(f"  Puzzle Rating  : {BOLD}{YELLOW}{puz_elo}{RESET} ({puz_cnt}/20 solved)")
+    lines.append(f"  Rating Puzzle  : {BOLD}{YELLOW}{puz_elo}{RESET} ({puz_cnt}/20 selesai)")
     lines.append("")
     for bot in BOTS:
         st = profile.get("bot_stats", {}).get(bot.bot_id, {})
         w, d, l = st.get("wins", 0), st.get("draws", 0), st.get("losses", 0)
         mark = f"{BOLD}{YELLOW}[★]{RESET}" if w > 0 else f"{GRAY}[✦]{RESET}"
         status = (
-            f"{GREEN}{w}W{RESET}-{YELLOW}{d}D{RESET}-{RED}{l}L{RESET}"
+            f"{GREEN}{w}M{RESET}-{YELLOW}{d}S{RESET}-{RED}{l}K{RESET}"
             if (w + d + l)
             else f"{GRAY}Belum tanding{RESET}"
         )
-        lines.append(f"  {mark} {bot.name:<10} (Elo {bot.elo:>4})  {status}")
+        lines.append(f"  {mark} {bot.name:<11} (Elo {bot.elo:>4})  {status}")
 
     owned = set(profile.get("achievements", []))
     lines.append("")
-    lines.append(f"{BOLD}{CYAN}═══ ACHIEVEMENTS ({len(owned)}/{len(ACHIEVEMENTS)}) ═══{RESET}")
+    lines.append(f"{BOLD}{CYAN}═══ MEDALI ({len(owned)}/{len(ACHIEVEMENTS)}) ═══{RESET}")
     for ach_id, (emoji, title, desc) in ACHIEVEMENTS.items():
         if ach_id in owned:
             lines.append(f"  {GREEN}✔{RESET} {emoji} {BOLD}{title}{RESET} — {DIM}{desc}{RESET}")
         else:
             lines.append(f"  {GRAY}○ 🔒 {title} — {desc}{RESET}")
     return "\n".join(lines)
+
 
 def render_match_analysis(
     tracker: MatchTracker,
@@ -336,24 +417,43 @@ def render_match_analysis(
     generation: Optional[int] = None,
     new_achievements: Optional[List[str]] = None,
 ) -> str:
-
     lines: List[str] = []
-    lines.append(f"{BOLD}{CYAN}═══ ANALISIS PERTANDINGAN ═══{RESET}")
+    lines.append(f"{BOLD}{CYAN}═══ EVALUASI AKHIR PERTANDINGAN ═══{RESET}")
     if tracker.player_moves:
         acc = tracker.accuracy_percent()
         perf = tracker.estimated_perf_elo(opponent_elo, outcome)
+        rank_code, rank_desc, rank_col = tracker.match_rank()
         acc_color = GREEN if acc >= 78 else (YELLOW if acc >= 55 else RED)
         counts = tracker.grade_counts()
+        phases = tracker.phase_letter_grades()
+
         lines.append(
-            f"  Akurasi Kamu : {BOLD}{acc_color}{acc:.1f}%{RESET}  ·  "
-            f"Perf Elo: {BOLD}{YELLOW}~{perf}{RESET}  ·  "
-            f"Avg CPL: {tracker.average_cpl():.0f}"
+            f"  Peringkat    : {rank_col}[ {rank_code} ] {rank_desc}{RESET}"
+        )
+        lines.append(
+            f"  Akurasi      : {BOLD}{acc_color}{acc:.1f}%{RESET}  ·  "
+            f"Perkiraan Rating: {BOLD}{YELLOW}~{perf}{RESET}"
+        )
+        if tracker.opening_name:
+            op_lbl = f"{tracker.opening_eco} · {tracker.opening_name}" if tracker.opening_eco else tracker.opening_name
+            lines.append(f"  Pembukaan    : {CYAN}{op_lbl}{RESET}")
+        lines.append(
+            f"  Per Fase     : Pembukaan {BOLD}{phases['opening']}{RESET}  ·  "
+            f"Tengah {BOLD}{phases['middlegame']}{RESET}  ·  "
+            f"Akhir {BOLD}{phases['endgame']}{RESET}"
         )
         lines.append(
             f"  Rincian      : {CYAN}!! {counts['!!']}{RESET}  {GREEN}! {counts['!']}{RESET}  "
-            f"✓ {counts['✓']}  {YELLOW}?! {counts['?!']}{RESET}  "
-            f"{RED}? {counts['?']}  ?? {counts['??']}{RESET}  {DIM}📖 {counts['📖']}{RESET}"
+            f"✓ {counts['✓']}  {DIM}📖 {counts['📖']}{RESET}  "
+            f"{YELLOW}?! {counts['?!']}{RESET}  {RED}? {counts['?']}  ?? {counts['??']}{RESET}"
+            + (f"  {MAGENTA}✕ {counts['✕']}{RESET}" if counts.get("✕", 0) else "")
         )
+        graph_lines = render_eval_graph(tracker.eval_history)
+        if graph_lines:
+            lines.append("")
+            lines.extend(graph_lines)
+            lines.append("")
+
         best = tracker.best_moment()
         if best:
             lines.append(
@@ -361,21 +461,22 @@ def render_match_analysis(
             )
         blunder = tracker.biggest_blunder()
         if blunder:
-            tip = f" — saran terbaik: {GREEN}{blunder.best_san}{RESET}" if blunder.best_san else ""
+            tip = f" — lebih enak: {GREEN}{blunder.best_san}{RESET}" if blunder.best_san else ""
             lines.append(
-                f"  Momen Kritis : Langkah #{(blunder.ply + 1) // 2} {BOLD}{RED}{blunder.san}{RESET} "
-                f"({blunder.grade.symbol}, -{blunder.cp_loss}cp){tip}"
+                f"  Momen Krusial: Langkah #{(blunder.ply + 1) // 2} {BOLD}{RED}{blunder.san}{RESET} "
+                f"({blunder.grade.symbol} {blunder.grade.label}){tip}"
             )
+        lines.append(f"  {ITALIC}{DIM}{tracker.match_story(outcome)}{RESET}")
+
     if generation is not None:
-        lines.append(
-            f"  {MAGENTA}🧬 Evolving AI -> Gen {generation} ({learned_lessons} pola baru dipelajari dari game ini!){RESET}"
-        )
+        note_l = f"{learned_lessons} kebiasaan barumu diingat untuk rematch!" if learned_lessons else "lawan makin akrab dengan gaya mainmu!"
+        lines.append(f"  {MAGENTA}★ Catatan Adaptif: Pertemuan #{generation} — {note_l}{RESET}")
     if new_achievements:
         lines.append("")
         for aid in new_achievements:
             if aid in ACHIEVEMENTS:
                 em, title, desc = ACHIEVEMENTS[aid]
-                lines.append(f"  {BOLD}{YELLOW}🏅 ACHIEVEMENT UNLOCKED: {em} {title}!{RESET} {DIM}({desc}){RESET}")
+                lines.append(f"  {BOLD}{YELLOW}🏆 MEDALI BARU: {em} {title}!{RESET} {DIM}({desc}){RESET}")
     return "\n".join(lines)
 
 def render_board(
@@ -443,7 +544,7 @@ def render_board(
         if is_adaptive and adaptive_delta != 0:
             arrow = f"{GREEN}+{adaptive_delta}▲{RESET}" if adaptive_delta > 0 else f"{RED}{adaptive_delta}▼{RESET}"
             delta_s = f" ({arrow})"
-        tag = f"{MAGENTA}🧬{RESET} " if is_adaptive else f"{bot.color_code}[✦]{RESET} "
+        tag = f"{MAGENTA}[★]{RESET} " if is_adaptive else f"{bot.color_code}[✦]{RESET} "
         return f"{tag}{BOLD}{bot.name}{RESET} {DIM}Elo {bot.elo}{RESET}{delta_s} ({side_name}){clk}  {cap}{adv_s}"
 
     board_lines: List[str] = []
@@ -513,10 +614,10 @@ def render_board(
     board_lines.append(_side_label(bot_color))
 
     if show_eval and eval_cp is not None:
-        streak_txt = f"  {BOLD}{YELLOW}🔥 Streak {hot_streak}x{RESET}" if hot_streak >= 3 else ""
-        board_lines.append(f"{DIM}Eval:{RESET} {render_eval_bar(eval_cp, eval_side, width=18)}{streak_txt}")
+        streak_txt = f"  {BOLD}{YELLOW}🔥 Beruntun {hot_streak}x{RESET}" if hot_streak >= 3 else ""
+        board_lines.append(f"{DIM}Posisi:{RESET} {render_eval_bar(eval_cp, eval_side, width=18)}{streak_txt}")
     elif hot_streak >= 3:
-        board_lines.append(f"{BOLD}{YELLOW}🔥 Hot Streak: {hot_streak} langkah akurat berturut-turut!{RESET}")
+        board_lines.append(f"{BOLD}{YELLOW}🔥 Sedang panas: {hot_streak} langkah jitu berturut-turut!{RESET}")
 
 
     if opening_label:
@@ -570,38 +671,36 @@ def render_settings_menu(profile: Dict[str, Any]) -> str:
 
     lines.append("")
     lines.append(f"{BOLD}Pengaturan Lain:{RESET}")
-    lines.append(f"  ({BOLD}S{RESET}) Gaya Bidak     : {YELLOW}{cur_style}{RESET} (unicode / ascii / ascii_plain)")
+    lines.append(f"  ({BOLD}S{RESET}) Gaya Bidak     : {YELLOW}{cur_style}{RESET} (unicode / ascii / polos)")
     lines.append(f"  ({BOLD}C{RESET}) Jam Catur      : {CYAN}{TIME_CONTROLS.get(cur_tc, TIME_CONTROLS['unlimited'])[0]}{RESET}")
-    lines.append(f"  ({BOLD}E{RESET}) Live Eval Bar  : {GREEN if show_eval else GRAY}{'ON' if show_eval else 'OFF'}{RESET}")
-    lines.append(f"  ({BOLD}M{RESET}) Grade Langkah  : {GREEN if show_grades else GRAY}{'ON (!/??)' if show_grades else 'OFF'}{RESET}")
-    lines.append(f"  ({BOLD}B{RESET}) Suara Bell     : {GREEN if sound_bell else GRAY}{'ON' if sound_bell else 'OFF'}{RESET}")
+    lines.append(f"  ({BOLD}E{RESET}) Bar Posisi     : {GREEN if show_eval else GRAY}{'NYALA' if show_eval else 'MATI'}{RESET}")
+    lines.append(f"  ({BOLD}M{RESET}) Notif Langkah  : {GREEN if show_grades else GRAY}{'NYALA (!!/??)' if show_grades else 'MATI'}{RESET}")
+    lines.append(f"  ({BOLD}B{RESET}) Suara Bell     : {GREEN if sound_bell else GRAY}{'NYALA' if sound_bell else 'MATI'}{RESET}")
     lines.append(f"  ({BOLD}0{RESET}) Kembali ke Menu")
     return "\n".join(lines)
 
 def render_help() -> str:
     return "\n".join([
-        f"{BOLD}{CYAN}═══ PANDUAN & COMMAND CHESSPORTABLE v{__version__} ═══{RESET}",
-        f"  {BOLD}Input Langkah:{RESET}",
-        f"    SAN       : {GREEN}e4{RESET}, {GREEN}E4{RESET}, {GREEN}Nf3{RESET}, {GREEN}Bxc6{RESET}, {GREEN}O-O{RESET}, {GREEN}O-O-O{RESET}, {GREEN}e8=Q{RESET}",
+        f"{BOLD}{CYAN}═══ PANDUAN BERMAIN CHESSPORTABLE v{__version__} ═══{RESET}",
+        f"  {BOLD}Cara Melangkah:{RESET}",
+        f"    Notasi    : {GREEN}e4{RESET}, {GREEN}E4{RESET}, {GREEN}Nf3{RESET}, {GREEN}Bxc6{RESET}, {GREEN}O-O{RESET}, {GREEN}O-O-O{RESET}, {GREEN}e8=Q{RESET}",
         f"    Koordinat : {GREEN}e2e4{RESET}, {GREEN}e2 e4{RESET}, {GREEN}e7e8q{RESET}",
-        f"    ARC Cheat : {MAGENTA}ARC e4 Nf3 Bc4 ...{RESET} {DIM}(auto-jalan beruntun tanpa input!){RESET}",
+        f"    ARC Cheat : {MAGENTA}ARC e4 kh3 Bc4 ...{RESET} {DIM}(jalan otomatis beruntun tanpa input!){RESET}",
         "",
-        f"  {BOLD}Command Permainan:{RESET}",
+        f"  {BOLD}Perintah di Dalam Permainan:{RESET}",
         f"    {YELLOW}undo{RESET} / {YELLOW}u{RESET}          Batalkan langkah terakhir",
-        f"    {YELLOW}hint{RESET} / {YELLOW}h{RESET}          Saran langkah terbaik + Principal Variation (PV)",
-        f"    {YELLOW}coach{RESET}             Tactical Coach: deteksi bidak gantung, ancaman & garis terbaik!",
-        f"    {YELLOW}moves{RESET} [kotak]     Daftar langkah legal + highlight di papan! (mis: moves e2)",
-        f"    {YELLOW}eval{RESET}              Hitung evaluasi detail + PV / toggle eval bar",
-        f"    {YELLOW}style{RESET}             Ganti Unicode ↔ ASCII ↔ Plain",
-        f"    {YELLOW}theme{RESET} [nama]      Ganti tema warna papan (sage/wood/ocean/neon/crimson/mono)",
-        f"    {YELLOW}flip{RESET}              Putar sudut pandang papan",
+        f"    {YELLOW}hint{RESET} / {YELLOW}h{RESET}          Minta saran langkah terbaik",
+        f"    {YELLOW}coach{RESET} / {YELLOW}saran{RESET}     Pelatih: cek bidak tak terjaga, peluang & rencana terbaik",
+        f"    {YELLOW}moves{RESET} [kotak]     Lihat langkah sah + sorot kotak tujuan (mis: moves e2)",
+        f"    {YELLOW}eval{RESET}              Cek keunggulan posisi saat ini / nyalakan bar posisi",
+        f"    {YELLOW}style{RESET}             Ganti bidak Unicode ↔ ASCII ↔ Polos",
+        f"    {YELLOW}theme{RESET} [nama]      Ganti tema papan (sage/wood/ocean/neon/crimson/mono)",
+        f"    {YELLOW}flip{RESET}              Putar arah papan",
         f"    {YELLOW}save{RESET} [nama]       Simpan permainan",
-        f"    {YELLOW}load{RESET} [nama]       Muat permainan tersimpan",
-        f"    {YELLOW}export{RESET} [nama]     Ekspor pertandingan ke file .PGN standar (+ ECO Opening)",
-        f"    {YELLOW}dna{RESET}               Intip DNA & memori Evolving AI saat ini",
-        f"    {YELLOW}history{RESET} / {YELLOW}pgn{RESET}     Lihat riwayat langkah lengkap",
-        f"    {YELLOW}fen{RESET}               Tampilkan FEN posisi saat ini",
-        f"    {YELLOW}think{RESET} <detik>     Atur batas waktu mikir bot (mis: think 2 / think default)",
+        f"    {YELLOW}load{RESET} [nama]       Lanjutkan permainan tersimpan",
+        f"    {YELLOW}export{RESET} [nama]     Simpan catatan permainan ke file .PGN",
+        f"    {YELLOW}gaya{RESET} / {YELLOW}dna{RESET}        Lihat catatan gaya mainmu",
+        f"    {YELLOW}history{RESET} / {YELLOW}pgn{RESET}     Lihat daftar langkah lengkap",
         f"    {YELLOW}draw{RESET} / {YELLOW}resign{RESET}     Tawarkan remis / Menyerah",
         f"    {YELLOW}menu{RESET} / {YELLOW}quit{RESET}       Kembali ke menu utama / Keluar",
     ])

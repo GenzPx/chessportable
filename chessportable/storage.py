@@ -12,18 +12,18 @@ from .bots import BOTS
 from .evolving import DEFAULT_BRAIN, DEFAULT_DNA, EvolvingBrain, MatchTracker, PlayerDNA
 
 ACHIEVEMENTS: Dict[str, Tuple[str, str, str]] = {
-    "first_blood": ("⚔️", "First Blood", "Menangkan pertandingan pertamamu melawan AI."),
-    "cat_tamer": ("🐱", "Cat Tamer", "Taklukkan Mittens si kucing licik (Elo 1300)."),
-    "giant_slayer": ("👑", "Giant Slayer", "Kalahkan bot kelas Master/GM (Elo >= 2400)."),
-    "godslayer": ("🔥", "Godslayer", "Kalahkan Jim sang Final Boss (Elo 4000)!"),
-    "flawless": ("💎", "Flawless Precision", "Menang dengan akurasi pertandingan >= 90%."),
-    "evo_survivor": ("🧬", "Evolution Survivor", "Kalahkan Evolving AI di Generasi 5 ke atas."),
-    "quick_mate": ("⚡", "Lightning Checkmate", "Skakmat AI dalam 15 langkah atau kurang."),
-    "promo_master": ("♛", "Promotion Master", "Promosikan pion dan menangkan pertandingan."),
-    "castle_king": ("🏰", "Iron Fortress", "Lakukan rokade dan menangkan pertandingan."),
-    "puzzle_10": ("🧩", "Tactical Prodigy", "Selesaikan 10 puzzle taktik berbeda."),
-    "gauntlet_clear": ("🏆", "Gauntlet Champion", "Tamatkan Boss Rush 10 Bot (Starrys -> Jim)."),
-    "collector_all": ("🌟", "Grandmaster Collector", "Kalahkan semua 10 bot di ChessPortable!"),
+    "first_blood": ("⚔", "Kemenangan Pertama", "Menangkan pertandingan pertamamu melawan bot."),
+    "cat_tamer": ("🐱", "Penjinak Kucing", "Taklukkan Mittens si kucing licik (Elo 1300)."),
+    "giant_slayer": ("👑", "Penakluk Master", "Kalahkan bot kelas Master ke atas (Elo 2400+)."),
+    "godslayer": ("🔥", "Legenda Baru", "Kalahkan Jim sang penantang puncak (Elo 4000)!"),
+    "flawless": ("💎", "Main Sempurna", "Menang dengan akurasi pertandingan minimal 90%."),
+    "evo_survivor": ("★", "Rival Tangguh", "Kalahkan lawan adaptif setelah 5 kali pertemuan."),
+    "quick_mate": ("⚡", "Skakmat Kilat", "Skakmat lawan dalam 15 langkah atau kurang."),
+    "promo_master": ("♛", "Pion Jadi Raja", "Promosikan pion dan menangkan pertandingan."),
+    "castle_king": ("🏰", "Benteng Kokoh", "Lakukan rokade dan menangkan pertandingan."),
+    "puzzle_10": ("🧩", "Ahli Taktik", "Selesaikan 10 puzzle taktik berbeda."),
+    "gauntlet_clear": ("🏆", "Juara Turnamen", "Tamatkan Tantangan Beruntun 10 Bot (Starrys -> Jim)."),
+    "collector_all": ("★", "Kolektor Lengkap", "Kalahkan seluruh 20 bot di ChessPortable!"),
 }
 
 TIME_CONTROLS: Dict[str, Tuple[str, int, int]] = {
@@ -372,7 +372,7 @@ def export_pgn_file(
     black_name: str,
     white_elo: str,
     black_elo: str,
-    event: str = "ChessPortable v2.5 Match",
+    event: str = "ChessPortable v3.0 Match",
     result: str = "*",
     eco: Optional[str] = None,
     opening: Optional[str] = None,

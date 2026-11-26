@@ -13,29 +13,54 @@ class MoveGrade:
     color: str
     cp_loss: int
     accuracy: float
+    code: str = "good"
 
 def move_accuracy_from_cp(cp_loss: int) -> float:
-
     loss = max(0, cp_loss)
     return round(max(0.0, min(100.0, 100.0 * math.exp(-0.0036 * loss))), 1)
 
-
-def classify_move(cp_loss: int, is_book: bool = False, is_tactical_best: bool = False) -> MoveGrade:
+def classify_move(
+    cp_loss: int,
+    is_book: bool = False,
+    is_tactical_best: bool = False,
+    missed_win: bool = False,
+) -> MoveGrade:
     if is_book and cp_loss <= 35:
-        return MoveGrade("📖", "Book", "\033[96m", cp_loss, 100.0)
+        return MoveGrade("📖", "Teori Buku", "\033[96m", cp_loss, 100.0, "book")
     acc = move_accuracy_from_cp(cp_loss)
     if cp_loss <= 8 and is_tactical_best:
-        return MoveGrade("!!", "Brilian", "\033[1;96m", cp_loss, 100.0)
+        return MoveGrade("!!", "Brilian", "\033[1;96m", cp_loss, 100.0, "brilliant")
     if cp_loss <= 18:
-        return MoveGrade("!", "Terbaik", "\033[92m", cp_loss, acc)
+        return MoveGrade("!", "Hebat", "\033[92m", cp_loss, acc, "great")
     if cp_loss <= 50:
-        return MoveGrade("✓", "Bagus", "\033[32m", cp_loss, acc)
+        return MoveGrade("✓", "Bagus", "\033[32m", cp_loss, acc, "good")
+    if missed_win and cp_loss >= 150:
+        return MoveGrade("✕", "Terlewat", "\033[1;95m", cp_loss, acc, "miss")
     if cp_loss <= 115:
-        return MoveGrade("?!", "Kurang Akurat", "\033[93m", cp_loss, acc)
+        return MoveGrade("?!", "Kurang Pas", "\033[93m", cp_loss, acc, "inaccuracy")
     if cp_loss <= 225:
-        return MoveGrade("?", "Kesalahan", "\033[38;5;208m", cp_loss, acc)
-    return MoveGrade("??", "Blunder", "\033[1;91m", cp_loss, acc)
+        return MoveGrade("?", "Kesalahan", "\033[38;5;208m", cp_loss, acc, "mistake")
+    return MoveGrade("??", "Blunder", "\033[1;91m", cp_loss, acc, "blunder")
 
+def format_move_callout(grade: MoveGrade, san: str, best_san: str = "") -> str:
+    R = "\033[0m"
+    D = "\033[2m"
+    alt = f" {D}(tadi lebih enak: {best_san}){R}" if best_san and best_san != san else ""
+    if grade.code == "brilliant":
+        return f"{grade.color}★★ BRILIAN!! ({san}) — Langkah luar biasa tajam!{R}"
+    if grade.code == "book":
+        return f"{grade.color}📖 Teori Pembukaan ({san}){R}"
+    if grade.code == "great":
+        return f"{grade.color}★ Hebat! ({san}){R}"
+    if grade.code == "good":
+        return f"{grade.color}✓ Bagus ({san}){R}"
+    if grade.code == "inaccuracy":
+        return f"{grade.color}?! Kurang pas ({san}){R}{alt}"
+    if grade.code == "mistake":
+        return f"{grade.color}⚠ Kesalahan! ({san}){R}{alt}"
+    if grade.code == "miss":
+        return f"{grade.color}✕ PELUANG TERLEWAT! ({san}){R}{alt}"
+    return f"{grade.color}✖ BLUNDER!! ({san}) — Hati-hati, posisi langsung terancam!{R}{alt}"
 
 def game_phase_name(ply: int) -> str:
     if ply <= 16:
@@ -43,7 +68,6 @@ def game_phase_name(ply: int) -> str:
     if ply <= 44:
         return "middlegame"
     return "endgame"
-
 
 @dataclass
 class RecordedPlayerMove:
@@ -57,13 +81,13 @@ class RecordedPlayerMove:
     is_check: bool
     is_castle: bool
     is_promo: bool
+    eval_white_cp: int = 0
 
 @dataclass
 class MatchTracker:
-
     player_moves: List[RecordedPlayerMove] = field(default_factory=list)
-
     ai_decisions: List[Tuple[str, str, int, int]] = field(default_factory=list)
+    eval_history: List[int] = field(default_factory=list)
     opening_tags: List[str] = field(default_factory=list)
     opening_eco: Optional[str] = None
     opening_name: Optional[str] = None
@@ -71,6 +95,9 @@ class MatchTracker:
     used_promo: bool = False
     undo_count: int = 0
     memory_hits: int = 0
+
+    def record_eval(self, white_cp: int) -> None:
+        self.eval_history.append(max(-1200, min(1200, int(white_cp))))
 
     def record_player_move(
         self,
@@ -83,9 +110,18 @@ class MatchTracker:
         is_check: bool = False,
         is_castle: bool = False,
         is_promo: bool = False,
+        eval_white_cp: int = 0,
+        player_eval_after: int = 0,
     ) -> MoveGrade:
         is_tactical_best = (is_capture or is_check or is_promo) and cp_loss <= 8 and ply >= 6
-        grade = classify_move(cp_loss, is_book=is_book, is_tactical_best=is_tactical_best)
+        best_possible = player_eval_after + cp_loss
+        missed_win = best_possible >= 280 and player_eval_after < 140 and cp_loss >= 150
+        grade = classify_move(
+            cp_loss,
+            is_book=is_book,
+            is_tactical_best=is_tactical_best,
+            missed_win=missed_win,
+        )
         phase = game_phase_name(ply)
         self.player_moves.append(
             RecordedPlayerMove(
@@ -99,8 +135,10 @@ class MatchTracker:
                 is_check=is_check,
                 is_castle=is_castle,
                 is_promo=is_promo,
+                eval_white_cp=eval_white_cp,
             )
         )
+        self.record_eval(eval_white_cp)
         if len(self.opening_tags) < 3:
             self.opening_tags.append(san)
         if is_castle:
@@ -117,6 +155,11 @@ class MatchTracker:
             self.player_moves.pop()
         if self.ai_decisions:
             self.ai_decisions.pop()
+        if len(self.eval_history) >= 2:
+            self.eval_history.pop()
+            self.eval_history.pop()
+        elif self.eval_history:
+            self.eval_history.pop()
         self.undo_count += 1
 
     def accuracy_percent(self) -> float:
@@ -131,7 +174,7 @@ class MatchTracker:
         return round(sum(min(600, m.cp_loss) for m in self.player_moves) / len(self.player_moves), 1)
 
     def grade_counts(self) -> Dict[str, int]:
-        counts = {"!!": 0, "!": 0, "✓": 0, "?!": 0, "?": 0, "??": 0, "📖": 0}
+        counts = {"!!": 0, "!": 0, "✓": 0, "?!": 0, "?": 0, "??": 0, "✕": 0, "📖": 0}
         for m in self.player_moves:
             if m.grade.symbol in counts:
                 counts[m.grade.symbol] += 1
@@ -144,6 +187,63 @@ class MatchTracker:
             if arr:
                 out[ph] = round(sum(arr) / len(arr), 1)
         return out
+
+    def phase_letter_grades(self) -> Dict[str, str]:
+        acpls = self.phase_acpl()
+        out: Dict[str, str] = {}
+        for ph, val in acpls.items():
+            if val is None:
+                out[ph] = "-"
+            elif val <= 20:
+                out[ph] = "S"
+            elif val <= 45:
+                out[ph] = "A"
+            elif val <= 85:
+                out[ph] = "B"
+            elif val <= 150:
+                out[ph] = "C"
+            else:
+                out[ph] = "D"
+        return out
+
+    def match_rank(self) -> Tuple[str, str, str]:
+        acc = self.accuracy_percent()
+        if not self.player_moves:
+            return ("-", "Terlalu singkat", "\033[90m")
+        if acc >= 94:
+            return ("S+", "Kelas Master!", "\033[1;96m")
+        if acc >= 86:
+            return ("S", "Sangat Tajam", "\033[1;92m")
+        if acc >= 76:
+            return ("A", "Solid & Rapi", "\033[92m")
+        if acc >= 64:
+            return ("B", "Cukup Bagus", "\033[93m")
+        if acc >= 50:
+            return ("C", "Masih Bisa Lebih Rapi", "\033[38;5;208m")
+        return ("D", "Banyak Pelajaran Baru", "\033[91m")
+
+    def match_story(self, outcome: str) -> str:
+        counts = self.grade_counts()
+        acc = self.accuracy_percent()
+        if not self.player_moves:
+            return "Pertandingan berhenti terlalu cepat untuk dibaca ceritanya."
+        if outcome == "win":
+            if counts["??"] == 0 and acc >= 88:
+                return "Permainan yang super bersih! Lawan sama sekali tidak diberi celah untuk balik melawan."
+            if counts["!!"] >= 1:
+                return "Kemenangan penuh gaya — momen brilianmu benar-benar membalikkan papan!"
+            if counts["??"] >= 1:
+                return "Sempat tegang gara-gara blunder, tapi mentalmu kuat buat membalikkan keadaan!"
+            return "Kemenangan yang rapi dan konsisten dari awal sampai akhir."
+        if outcome == "draw":
+            return "Duel sengit yang berimbang! Kedua sisi saling mengunci sampai titik akhir."
+        if counts["??"] >= 2:
+            return "Beberapa blunder kecil jadi penentu hari ini — pelan-pelan cek ancaman lawan sebelum melangkah."
+        if counts["✕"] >= 1:
+            return "Sebenarnya kamu sempat punya peluang emas! Cek [V] Review buat lihat langkah kuncinya."
+        if acc >= 78:
+            return "Mainmu sebenarnya udah rapi banget, cuma lawan sedikit lebih tajam di momen penting."
+        return "Pertandingan yang bagus buat pemanasan — coba lihat [V] Review biar makin tajam di rematch!"
 
     def biggest_blunder(self) -> Optional[RecordedPlayerMove]:
         blunders = [m for m in self.player_moves if m.cp_loss >= 115]
@@ -159,7 +259,6 @@ class MatchTracker:
 
     def estimated_perf_elo(self, opponent_elo: int, outcome: str) -> int:
         acc = self.accuracy_percent()
-
         outcome_bonus = 240 if outcome == "win" else (-210 if outcome == "loss" else 15)
         acc_elo = int(200 + (acc / 100.0) ** 1.45 * 2900)
         blended = int(0.55 * (opponent_elo + outcome_bonus) + 0.45 * acc_elo)
@@ -269,34 +368,33 @@ class PlayerDNA:
         self.games_analyzed += 1
 
     def archetype(self) -> Tuple[str, str]:
-
         if self.games_analyzed == 0:
-            return ("Uncharted Challenger", "Mainkan 1+ game agar DNA caturmu terbaca.")
+            return ("Penantang Baru", "Mainkan 1+ pertandingan agar gaya mainmu mulai terbaca.")
         if self.aggression >= 62 and self.tactical >= 65:
-            return ("Tactical Assassin", "Tajam, agresif, dan mematikan saat menyerang raja.")
+            return ("Penyerang Tajam", "Agresif, berani membuka posisi, dan mematikan di serangan raja.")
         if self.aggression >= 62:
-            return ("Fearless Berserker", "Suka serangan cepat, penuh tekanan & taktik liar.")
+            return ("Pemburu Serangan", "Suka tempo cepat, penuh tekanan & taktik tak terduga.")
         if self.positional >= 65 and self.tactical >= 68:
-            return ("Grandmaster Architect", "Presisi tinggi, struktur rapi, jarang blunder.")
+            return ("Arsitek Papan", "Rapi, sabar, jarang blunder, dan kuat mengendalikan ruang.")
         if self.positional >= 62:
-            return ("Iron Strategist", "Solid, sabar membangun posisi & aman di pertahanan.")
+            return ("Benteng Kokoh", "Solid, tenang membangun posisi & susah ditembus lawan.")
         if self.tactical >= 72:
-            return ("Precision Calculator", "Akurasi tinggi dan jeli menangkap kesalahan lawan.")
-        return ("Universal All-Rounder", "Gaya seimbang — fleksibel menyerang maupun bertahan.")
+            return ("Mata Elang", "Teliti banget dan cepat menghukum kesalahan lawan.")
+        return ("Pemain Serba Bisa", "Gaya seimbang — nyaman menyerang maupun bertahan.")
 
     def weakest_phase(self) -> str:
         phases = {
-            "Opening": self.opening_acpl,
-            "Middlegame": self.middlegame_acpl,
-            "Endgame": self.endgame_acpl,
+            "Pembukaan": self.opening_acpl,
+            "Tengah": self.middlegame_acpl,
+            "Akhir": self.endgame_acpl,
         }
         return max(phases, key=lambda k: phases[k])
 
     def strongest_phase(self) -> str:
         phases = {
-            "Opening": self.opening_acpl,
-            "Middlegame": self.middlegame_acpl,
-            "Endgame": self.endgame_acpl,
+            "Pembukaan": self.opening_acpl,
+            "Tengah": self.middlegame_acpl,
+            "Akhir": self.endgame_acpl,
         }
         return min(phases, key=lambda k: phases[k])
 
@@ -336,39 +434,37 @@ class EvolvingBrain:
     def stage_info(self) -> Tuple[str, str]:
         g = self.generation
         if g <= 2:
-            return ("Seed", "Baru mulai mengamati gaya mainmu")
+            return ("Baru Kenal", "Baru mulai mengamati cara mainmu")
         if g <= 5:
-            return ("Learner", "Mulai mengingat pola pembukaan & blunder")
+            return ("Mulai Hafal", "Mulai ingat pola pembukaan & jebakanmu")
         if g <= 10:
-            return ("Hunter", "Aktif meng-counter kelemahan & jebakanmu")
+            return ("Cerdik", "Aktif membaca kelemahan dan kebiasaanmu")
         if g <= 18:
-            return ("Tactician", "Beradaptasi tajam terhadap DNA permainanmu")
+            return ("Lihai", "Sangat paham ritme dan gaya permainanmu")
         if g <= 30:
-            return ("Nemesis", "Hafal kebiasaanmu dan menyerang titik lemahmu")
-        return ("Apex", "Evolusi puncak — dirancang khusus untuk mengalahkanmu")
+            return ("Rival Sejati", "Hafal hampir semua kebiasaanmu di papan")
+        return ("Master Rival", "Tantangan penuh yang dibuat khusus untukmu")
 
     def compute_counter_strategy(self, dna: PlayerDNA) -> Tuple[str, float, float, Optional[str]]:
-
-
         if dna.games_analyzed == 0:
-            self.last_counter_trait = "Adaptive Mirror"
-            return ("Adaptive Mirror", 1.0, 1.0, None)
+            self.last_counter_trait = "Menyesuaikan Gaya"
+            return ("Menyesuaikan Gaya", 1.0, 1.0, None)
 
         weak = dna.weakest_phase()
         if dna.aggression >= 62:
-            self.last_counter_trait = "Iron Counter-Puncher"
-            return ("Iron Counter-Puncher", 1.08, 1.24, "solid")
+            self.last_counter_trait = "Pertahanan Balik"
+            return ("Pertahanan Balik", 1.08, 1.24, "solid")
         if dna.positional >= 64:
-            self.last_counter_trait = "Chaos Breaker"
-            return ("Chaos Breaker", 1.32, 0.96, "sharp")
-        if weak == "Opening" and dna.opening_acpl >= 65:
-            self.last_counter_trait = "Opening Predator"
-            return ("Opening Predator", 1.18, 1.08, "tricky")
-        if weak == "Endgame" and dna.endgame_acpl >= 80:
-            self.last_counter_trait = "Endgame Grinder"
-            return ("Endgame Grinder", 0.94, 1.28, "master")
-        self.last_counter_trait = "Tactical Chameleon"
-        return ("Tactical Chameleon", 1.15, 1.12, None)
+            self.last_counter_trait = "Pemecah Posisi"
+            return ("Pemecah Posisi", 1.32, 0.96, "sharp")
+        if weak == "Pembukaan" and dna.opening_acpl >= 65:
+            self.last_counter_trait = "Penjebak Pembukaan"
+            return ("Penjebak Pembukaan", 1.18, 1.08, "tricky")
+        if weak == "Akhir" and dna.endgame_acpl >= 80:
+            self.last_counter_trait = "Penguasa Akhir"
+            return ("Penguasa Akhir", 0.94, 1.28, "master")
+        self.last_counter_trait = "Fleksibel"
+        return ("Fleksibel", 1.15, 1.12, None)
 
     def move_bias_map(self, zobrist_hex: str) -> Dict[str, int]:
 
@@ -465,9 +561,9 @@ class EvolvingAdaptiveController:
             return BotProfile(
                 key=f"A {persona.key}",
                 bot_id=f"adaptive_{persona.bot_id}",
-                name=f"Adaptive·{persona.name}",
+                name=f"Adaptif · {persona.name}",
                 elo=self.elo,
-                title=f"Gen {self.brain.generation} {stage} · {self.counter_trait} (Base {persona.elo})",
+                title=f"{stage} · {self.counter_trait} (Asal Elo {persona.elo})",
                 color_code=persona.color_code,
                 max_depth=base.max_depth,
                 think_time=base.think_time,
@@ -490,9 +586,9 @@ class EvolvingAdaptiveController:
         return BotProfile(
             key="A",
             bot_id=f"adaptive_{persona.bot_id}",
-            name=f"Evolving·{persona.name}",
+            name=f"Adaptif ({persona.name})",
             elo=self.elo,
-            title=f"Gen {self.brain.generation} {stage} · {self.counter_trait}",
+            title=f"{stage} · {self.counter_trait}",
             color_code=persona.color_code,
             max_depth=base.max_depth,
             think_time=base.think_time,

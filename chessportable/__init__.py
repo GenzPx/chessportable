@@ -1,3 +1,3 @@
-__version__ = "2.5.0"
-__codename__ = "Apex Evolution"
+__version__ = "3.0.0"
+__codename__ = "Klub Catur"
 __author__ = "GenzPX"

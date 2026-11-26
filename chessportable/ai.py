@@ -913,6 +913,7 @@ class ChessAI:
         best_score = -INF
         completed_depth = 0
         root_scores: Dict[int, int] = {}
+        exact_root: set[int] = set()
 
         for depth in range(1, max_depth + 1):
             try:
@@ -937,6 +938,7 @@ class ChessAI:
                     cur_best_move = scored[0][1]
                     cur_best_score = -INF
                     cur_scores: Dict[int, int] = {}
+                    cur_exact: set[int] = set()
 
                     for idx, (_, mv) in enumerate(scored):
                         mv_uci = move_to_uci(mv) if biases else ""
@@ -944,13 +946,20 @@ class ChessAI:
                         work_board.make_move(mv, record_san=False)
                         if idx == 0 or full_root_window or is_biased_mv:
                             score = -self._negamax(work_board, depth - 1, -beta, -cur_alpha if not is_biased_mv else INF, 1, True, 0)
+                            exact_score = True
                         else:
                             score = -self._negamax(work_board, depth - 1, -cur_alpha - 1, -cur_alpha, 1, True, 0)
+                            exact_score = False
                             if cur_alpha < score < beta:
                                 score = -self._negamax(work_board, depth - 1, -beta, -cur_alpha, 1, True, 0)
+                                exact_score = True
                         work_board.unmake_move(pop_history=True)
 
-                        cur_scores[mv] = score
+                        if exact_score:
+                            cur_scores[mv] = score
+                            cur_exact.add(mv)
+                        elif mv not in cur_scores:
+                            cur_scores[mv] = min(score, cur_alpha - 1)
                         if score > cur_best_score:
                             cur_best_score = score
                             cur_best_move = mv
@@ -966,6 +975,7 @@ class ChessAI:
                 best_move = cur_best_move
                 best_score = cur_best_score
                 root_scores = cur_scores
+                exact_root = cur_exact
                 completed_depth = depth
 
                 if best_score > MATE_THRESHOLD:
@@ -1012,9 +1022,10 @@ class ChessAI:
                 ]
                 noisy.sort(key=lambda x: x[0], reverse=True)
                 _, best_move, best_score = noisy[0]
-            else:
+            elif not biases:
                 near_best = [
-                    (m, s) for m, s in root_scores.items() if s >= best_score - noise_cp
+                    (m, s) for m, s in root_scores.items()
+                    if m in exact_root and s >= best_score - noise_cp
                 ]
                 if near_best:
                     best_move, best_score = random.choice(near_best)

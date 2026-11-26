@@ -29,7 +29,7 @@ class BotProfile:
         lines = self.dialogues.get(event) or self.dialogues.get("idle") or ("...",)
         return random.choice(lines)
 
-BOTS: Tuple[BotProfile, ...] = (
+CORE_BOTS: Tuple[BotProfile, ...] = (
     BotProfile(
         key="1",
         bot_id="starrys",
@@ -582,6 +582,560 @@ BOTS: Tuple[BotProfile, ...] = (
     ),
 )
 
+EXTRA_BOTS: Tuple[BotProfile, ...] = (
+    BotProfile(
+        key="10",
+        bot_id="budi",
+        name="Budi",
+        elo=300,
+        title="Penjaga Warkop",
+        color_code="\033[92m",
+        max_depth=1,
+        think_time=0.06,
+        use_quiescence=False,
+        use_pruning=False,
+        noise_cp=360,
+        blunder_rate=0.45,
+        book_prob=0.10,
+        book_style="casual",
+        aggression=0.95,
+        positional=0.65,
+        dialogues={
+            "intro": (
+                "Halo bro! Sambil ngopi yuk, aku Budi. Santai aja mainnya!",
+                "Duduk sini dulu, kopi belum habis nih. Ayo mulai!",
+            ),
+            "capture": (
+                "Eh, bisa dimakan ya? Lumayan nih!",
+                "Wah masuk tuh! Minum kopi dulu biar fokus.",
+            ),
+            "captured": (
+                "Walah, lupa dijaga! Gak apa-apa, lanjut!",
+                "Aduh kesambar! Mata agak burem nih kebanyakan begadang.",
+            ),
+            "check": (
+                "Skak bro! Hati-hati ya!",
+                "Eh skak ternyata! Hehehe.",
+            ),
+            "in_check": (
+                "Waduh rajaku digedor! Kabur dulu ah.",
+                "Santai bro, jangan langsung skak dong!",
+            ),
+            "blunder_player": (
+                "Eh beneran ke situ? Yakin gak mau mikir lagi?",
+                "Hehe kayaknya ada yang ketinggalan tuh bro.",
+            ),
+            "good_player": (
+                "Wih jago juga kamu ya!",
+                "Langkah anak klub nih kayaknya!",
+            ),
+            "win": ("Hahaha menang juga sambil jaga warkop! Traktir kopi ya!",),
+            "lose": ("Wah kalah aku! Kapan-kapan mampir lagi ya bro.",),
+            "draw": ("Seri! Pas banget kopinya juga habis.",),
+            "idle": (
+                "Pesan gorengan dulu gak?",
+                "Hmm... gerak yang mana ya enaknya...",
+            ),
+        },
+    ),
+    BotProfile(
+        key="11",
+        bot_id="sari",
+        name="Tante Sari",
+        elo=620,
+        title="Jagoan Komplek",
+        color_code="\033[95m",
+        max_depth=1,
+        think_time=0.09,
+        use_quiescence=False,
+        use_pruning=False,
+        noise_cp=210,
+        blunder_rate=0.25,
+        book_prob=0.25,
+        book_style="aggressive",
+        aggression=1.20,
+        positional=0.75,
+        dialogues={
+            "intro": (
+                "Oh mau nantang Tante Sari? Bapak-bapak komplek aja kalah semua lho!",
+                "Sini main sama Tante. Jangan kaget kalau Menteriku langsung maju ya!",
+            ),
+            "capture": (
+                "Tuh kan, dibilangin juga apa — bidakmu gak dijaga!",
+                "Sini Tante rapikan papanmu ya, satu bidak masuk laci.",
+            ),
+            "captured": (
+                "Eh nakal banget makan bidak Tante!",
+                "Aduh! Gak sopan ah langsung makan begitu!",
+            ),
+            "check": (
+                "Skak! Awas rajamu lari ke mana tuh!",
+                "Skak manis dari Tante Sari!",
+            ),
+            "in_check": (
+                "Heh, berani-beraninya nyenggol raja Tante!",
+                "Bentar, geser dulu rajanya...",
+            ),
+            "blunder_player": (
+                "Lho kok taruh di situ sih? Sayang banget tuh!",
+                "Aduh nak, kurang teliti deh barusan.",
+            ),
+            "good_player": (
+                "Ih pintar juga mainnya, belajar dari siapa?",
+                "Wah bagus tuh, Tante sampai mikir keras!",
+            ),
+            "win": ("Hehehe masih juara bertahan komplek dong!",),
+            "lose": ("Wah hebat kamu! Nanti Tante latihan lagi biar balas dendam!",),
+            "draw": ("Imbang deh, lumayan seru buat sore-sore!",),
+            "idle": (
+                "Tunggu bentar, Tante lihat-lihat dulu...",
+                "Jangan buru-buru, catur itu butuh sabar.",
+            ),
+        },
+    ),
+    BotProfile(
+        key="12",
+        bot_id="raka",
+        name="Raka",
+        elo=1050,
+        title="Anak Ekskul Catur",
+        color_code="\033[94m",
+        max_depth=2,
+        think_time=0.14,
+        use_quiescence=False,
+        use_pruning=False,
+        noise_cp=110,
+        blunder_rate=0.12,
+        book_prob=0.45,
+        book_style="aggressive",
+        aggression=1.25,
+        positional=0.90,
+        dialogues={
+            "intro": (
+                "Yo! Aku Raka dari ekskul catur. Kemarin baru hafalin jebakan baru nih!",
+                "Gas tanding! Semoga bukan cuma teori buku doang yang kepake haha.",
+            ),
+            "capture": (
+                "Boom! Masuk hitungan!",
+                "Dapet satu! Lumayan buat unggul materi!",
+            ),
+            "captured": (
+                "Weh, ketahuan ternyata rencanaku!",
+                "Aduh gak lihat diagonalnya tadi!",
+            ),
+            "check": (
+                "Skak! Lagi panas nih seranganku!",
+                "Skak! Ayo bertahan kalau bisa!",
+            ),
+            "in_check": (
+                "Eh skak?! Bentar-bentar, tutup dulu!",
+                "Oke tenang Raka, jangan panik...",
+            ),
+            "blunder_player": (
+                "Lho? Gratis nih? Beneran gak ada jebakan kan?",
+                "Waduh blunder tuh! Makasih ya!",
+            ),
+            "good_player": (
+                "Gila, tajem banget langkahmu!",
+                "Wih keren! Kayak di video turnamen!",
+            ),
+            "win": ("YES!! Latihan ekskul tiap sore akhirnya kebayar!",),
+            "lose": ("GG bro! Ajarin dong cara main kayak tadi!",),
+            "draw": ("Seru banget! Remis yang adil deh!",),
+            "idle": (
+                "Bentar, aku pernah lihat posisi ini di buku...",
+                "Kalau aku majuin ini, kamu bakal balas apa ya?",
+            ),
+        },
+    ),
+    BotProfile(
+        key="13",
+        bot_id="hasan",
+        name="Kakek Hasan",
+        elo=1550,
+        title="Legenda Pos Ronda",
+        color_code="\033[93m",
+        max_depth=3,
+        think_time=0.28,
+        use_quiescence=True,
+        use_pruning=False,
+        noise_cp=42,
+        blunder_rate=0.04,
+        book_prob=0.65,
+        book_style="solid",
+        aggression=0.90,
+        positional=1.20,
+        dialogues={
+            "intro": (
+                "Sudah 40 tahun Kakek main di papan kayu ini. Mari, tunjukkan langkahmu, Nak.",
+                "Pelan-pelan saja, Nak. Catur bukan lomba lari, tapi adu ketenangan.",
+            ),
+            "capture": (
+                "Yang tergesa-gesa biasanya lupa menjaga belakangnya.",
+                "Pelan tapi pasti, satu per satu bidakmu berkurang.",
+            ),
+            "captured": (
+                "Bagus, matamu jeli juga melihat celah itu.",
+                "Boleh juga... Kakek sempat lengah sedikit.",
+            ),
+            "check": (
+                "Skak, Nak. Coba perhatikan rajamu baik-baik.",
+                "Skak! Jangan sampai raja kehilangan tempat berteduh.",
+            ),
+            "in_check": (
+                "Hehe, semangat anak muda memang tajam.",
+                "Tenang... raja tua ini masih tahu jalan keluar.",
+            ),
+            "blunder_player": (
+                "Hati-hati, Nak... terlalu cepat melangkah tadi.",
+                "Langkah itu meninggalkan lubang besar di pertahananmu.",
+            ),
+            "good_player": (
+                "Nah, itu baru langkah yang matang!",
+                "Cakep! Kakek suka caramu mengatur bidak.",
+            ),
+            "win": ("Pengalaman tidak pernah bohong, Nak. Ayo coba lagi kapan-kapan.",),
+            "lose": ("Luar biasa, Nak! Masa depan catur ada di tanganmu.",),
+            "draw": ("Seimbang. Permainan yang sangat menyenangkan buat Kakek.",),
+            "idle": (
+                "Pion itu jiwa catur, jangan disepelekan...",
+                "Sabar... tunggu saat yang paling tepat.",
+            ),
+        },
+    ),
+    BotProfile(
+        key="14",
+        bot_id="nabila",
+        name="Nabila",
+        elo=1950,
+        title="Kapten Klub Kampus",
+        color_code="\033[96m",
+        max_depth=3,
+        think_time=0.45,
+        use_quiescence=True,
+        use_pruning=False,
+        noise_cp=20,
+        blunder_rate=0.015,
+        book_prob=0.80,
+        book_style="solid",
+        aggression=1.00,
+        positional=1.25,
+        dialogues={
+            "intro": (
+                "Hai, aku Nabila. Siap main catur yang rapi dan terstruktur?",
+                "Yuk mulai. Aku suka permainan posisional, tapi jangan salah — taktikku juga siap.",
+            ),
+            "capture": (
+                "Pertukaran yang menguntungkan buat struktur pionku.",
+                "Terima kasih, bidak itu memang dari tadi jadi target.",
+            ),
+            "captured": (
+                "Rapi juga rencanamu. Aku harus atur ulang koordinasi bidak.",
+                "Oke, itu masuk akal. Permainan jadi makin menarik.",
+            ),
+            "check": (
+                "Skak! Ruang gerak rajamu makin sempit.",
+                "Skak! Mari lihat bagaimana kamu merespon.",
+            ),
+            "in_check": (
+                "Sudah kuperhitungkan. Raja aman.",
+                "Tekanan yang bagus, tapi pertahananku masih utuh.",
+            ),
+            "blunder_player": (
+                "Sepertinya kamu melewatkan ancaman kecil tadi.",
+                "Hmm, itu memberi aku inisiatif gratis.",
+            ),
+            "good_player": (
+                "Langkah posisional yang sangat bersih!",
+                "Wah, aku suka tekanan yang kamu bangun.",
+            ),
+            "win": ("Permainan yang bagus! Evaluasi pembukaanmu tadi bakal bikin makin kuat.",),
+            "lose": ("Keren banget! Kamu layak jadi lawan latih tanding utama klub kami!",),
+            "draw": ("Remis yang sangat solid dari kedua sisi.",),
+            "idle": (
+                "Menguasai petak lemah selalu lebih penting dari sekadar buru-buru.",
+                "Struktur dulu, baru serangan.",
+            ),
+        },
+    ),
+    BotProfile(
+        key="15",
+        bot_id="surya",
+        name="Surya",
+        elo=2150,
+        title="Pemburu Gambit",
+        color_code="\033[91m",
+        max_depth=4,
+        think_time=0.60,
+        use_quiescence=True,
+        use_pruning=True,
+        noise_cp=14,
+        blunder_rate=0.008,
+        book_prob=0.85,
+        book_style="aggressive",
+        aggression=1.45,
+        positional=0.95,
+        dialogues={
+            "intro": (
+                "Aku Surya! Kalau main sama aku, jangan harap papan bakal tenang!",
+                "Pion bisa dicari lagi, yang penting serangan jalan terus! Ayo gas!",
+            ),
+            "capture": (
+                "JEBRET! Buka jalur menuju rajamu!",
+                "Bidak satu jatuh, pertahananmu mulai retak!",
+            ),
+            "captured": (
+                "Ambil aja! Yang penting waktuku lebih cepat buat menyerang!",
+                "Haha, itu umpan atau memang mau baku hantam? Ayo!",
+            ),
+            "check": (
+                "SKAK!! Rasakan badai dari sayap raja!",
+                "SKAK! Gak ada waktu buat bernapas!",
+            ),
+            "in_check": (
+                "Haha, balas menyerang ya?! Ini baru seru!",
+                "Cuma geser sebentar, habis ini giliranku!",
+            ),
+            "blunder_player": (
+                "Salah langkah di depan aku? Siap-siap kena badai!",
+                "Celah terbuka lebar! Gas langsung!",
+            ),
+            "good_player": (
+                "Gila, pertahananmu dingin banget di tengah serangan!",
+                "Keren! Gak gampang bikin aku mikir mundur!",
+            ),
+            "win": ("BOOOOM!! Serangan total selalu jadi tontonan terbaik!",),
+            "lose": ("Wih, seranganku berhasil kamu patahkan! Respek penuh!",),
+            "draw": ("Pertarungan liar yang berakhir imbang — mantap banget!",),
+            "idle": (
+                "Kalau ada yang bisa dikorbanin demi skakmat, kenapa enggak?",
+                "Papan yang tenang itu membosankan...",
+            ),
+        },
+    ),
+    BotProfile(
+        key="16",
+        bot_id="kyoko",
+        name="Kyoko",
+        elo=2500,
+        title="Ahli Taktik Tokyo",
+        color_code="\033[95m",
+        max_depth=4,
+        think_time=0.85,
+        use_quiescence=True,
+        use_pruning=True,
+        noise_cp=6,
+        blunder_rate=0.0,
+        book_prob=0.92,
+        book_style="master",
+        aggression=1.15,
+        positional=1.20,
+        dialogues={
+            "intro": (
+                "Salam kenal, aku Kyoko. Mari kita nikmati permainan yang bersih dan tajam.",
+                "Satu langkah kecil bisa mengubah seluruh harmoni papan. Silakan mulai.",
+            ),
+            "capture": (
+                "Tepat seperti yang terlihat tiga langkah lalu.",
+                "Bidak ini sudah lama tidak punya ruang pulang.",
+            ),
+            "captured": (
+                "Pengamatan yang sangat halus. Aku menghargainya.",
+                "Indah. Papan menjadi jauh lebih hidup sekarang.",
+            ),
+            "check": (
+                "Skak. Jalan keluarnya hanya tersisa sedikit.",
+                "Skak dengan tenang.",
+            ),
+            "in_check": (
+                "Tenang... masih ada ruang untuk bernapas.",
+                "Taktik yang rapi.",
+            ),
+            "blunder_player": (
+                "Ah... langkah itu agak terburu-buru.",
+                "Keseimbangan papan baru saja miring ke sisiku.",
+            ),
+            "good_player": (
+                "Sangat elegan. Langkah berkelas tinggi.",
+                "Kau membaca posisinya dengan sangat jernih.",
+            ),
+            "win": ("Terima kasih atas pertandingannya. Sangat berkesan.",),
+            "lose": ("Menakjubkan... kau menemukan kombinasi yang tidak kulihat.",),
+            "draw": ("Harmoni yang sempurna. Remis yang indah.",),
+            "idle": (
+                "Dengarkan posisi papannya...",
+                "Setiap bidak punya perannya sendiri.",
+            ),
+        },
+    ),
+    BotProfile(
+        key="17",
+        bot_id="viktor",
+        name="Viktor",
+        elo=2700,
+        title="Veteran Papan Tua",
+        color_code="\033[93m",
+        max_depth=5,
+        think_time=1.05,
+        use_quiescence=True,
+        use_pruning=True,
+        noise_cp=3,
+        blunder_rate=0.0,
+        book_prob=0.95,
+        book_style="solid",
+        aggression=0.95,
+        positional=1.38,
+        dialogues={
+            "intro": (
+                "Viktor. Aku tidak suka trik murahan — tunjukkan permainan nyata.",
+                "Duduklah. Kita lihat siapa yang lebih dulu kehilangan kesabaran.",
+            ),
+            "capture": (
+                "Kelemahan kecil selalu berakhir seperti ini.",
+                "Satu beban berkurang di sisiku.",
+            ),
+            "captured": (
+                "Hmm. Tidak buruk.",
+                "Kau berani menukar di saat yang tepat.",
+            ),
+            "check": (
+                "Skak. Pertahananmu mulai retak.",
+                "Skak.",
+            ),
+            "in_check": (
+                "Tembokku tidak roboh semudah itu.",
+                "Hanya gangguan kecil.",
+            ),
+            "blunder_player": (
+                "Kesalahan fatal. Di level ini, itu tidak dimaafkan.",
+                "Sayang sekali. Kau baru saja melepaskan posisimu.",
+            ),
+            "good_player": (
+                "Hmph... langkah yang sangat dewasa.",
+                "Akhirnya ada lawan yang benar-benar berpikir.",
+            ),
+            "win": ("Kesabaran selalu mengalahkan ketergesaan.",),
+            "lose": ("...Kau menembus pertahananku. Aku angkat topi.",),
+            "draw": ("Tidak ada yang goyah. Remis yang pantas.",),
+            "idle": (
+                "Tekan sedikit demi sedikit...",
+                "Jangan beri lawan oksigen.",
+            ),
+        },
+    ),
+    BotProfile(
+        key="18",
+        bot_id="aria",
+        name="Aria",
+        elo=3000,
+        title="Grandmaster Kilat",
+        color_code="\033[96m",
+        max_depth=5,
+        think_time=1.35,
+        use_quiescence=True,
+        use_pruning=True,
+        noise_cp=0,
+        blunder_rate=0.0,
+        book_prob=0.98,
+        book_style="aggressive",
+        aggression=1.32,
+        positional=1.22,
+        dialogues={
+            "intro": (
+                "Halo! Aku Aria. Jangan berkedip ya, kombinasiku suka datang tiba-tiba!",
+                "Siap adu cepat dan tajam? Ayo buat pertandingan yang tak terlupakan!",
+            ),
+            "capture": (
+                "Kena! Masuk tepat ke jalur kombinasiku!",
+                "Satu lagi keluar dari papan!",
+            ),
+            "captured": (
+                "Ooh, tajam juga balasanmu! Aku suka ini!",
+                "Hebat, kamu berhasil memotong rencanaku!",
+            ),
+            "check": (
+                "Skak! Lihat semua bidakku mengarah ke satu titik!",
+                "Skak kilat!",
+            ),
+            "in_check": (
+                "Wih, serangan balik cepat! Bagus!",
+                "Hampir saja, tapi aku masih punya jalan!",
+            ),
+            "blunder_player": (
+                "Aha! Celah terbuka — waktunya kombinasi!",
+                "Hati-hati, satu langkah meleset bisa langsung selesai!",
+            ),
+            "good_player": (
+                "Brilian!! Kamu benar-benar bisa mengimbangi ritmeku!",
+                "Wow, itu langkah level Grandmaster!",
+            ),
+            "win": ("Selesai! Kecepatan dan ketepatan jadi kunci hari ini!",),
+            "lose": ("GILA!! Kamu ngalahin aku?! Rematch wajib banget nih!",),
+            "draw": ("Duel paling seru hari ini! Imbang dengan terhormat!",),
+            "idle": (
+                "Ada taktik tersembunyi di sini, aku bisa merasakannya...",
+                "Ayo buat papan ini bersinar!",
+            ),
+        },
+    ),
+    BotProfile(
+        key="19",
+        bot_id="noctis",
+        name="Noctis",
+        elo=3600,
+        title="Bayangan Papan",
+        color_code="\033[91m",
+        max_depth=6,
+        think_time=1.80,
+        use_quiescence=True,
+        use_pruning=True,
+        noise_cp=0,
+        blunder_rate=0.0,
+        book_prob=1.0,
+        book_style="master",
+        aggression=1.22,
+        positional=1.34,
+        dialogues={
+            "intro": (
+                "Satu langkah di bawah Jim... Akulah Noctis. Tunjukkan batas kemampuanmu.",
+                "Di papan gelap ini, hanya langkah paling jernih yang bertahan.",
+            ),
+            "capture": (
+                "Hilang ditelan bayangan.",
+                "Sudah terlihat sejak lima langkah lalu.",
+            ),
+            "captured": (
+                "Menarik... kau berani melangkah sejauh ini.",
+                "Bidak itu hanya bagian kecil dari rencana besar.",
+            ),
+            "check": (
+                "Skak. Langit mulai menyempit.",
+                "Skak.",
+            ),
+            "in_check": (
+                "Cahaya kecil di tengah gelap... menarik.",
+                "Belum cukup untuk menjatuhkanku.",
+            ),
+            "blunder_player": (
+                "Retakan pertama sudah muncul.",
+                "Dari sini, jalanmu sangat terjal.",
+            ),
+            "good_player": (
+                "Luar biasa... bahkan Jim pun akan memperhatikan langkah itu.",
+                "Ketepatan yang langka.",
+            ),
+            "win": ("Bayangan menutup papan. Kembalilah saat kau lebih siap.",),
+            "lose": ("...Kau melewati Noctis. Hanya Jim yang tersisa di puncak.",),
+            "draw": ("Menahan Noctis hingga akhir... kau bukan pemain biasa.",),
+            "idle": (
+                "Keheningan sebelum langkah penentu...",
+                "Setiap kotak punya harganya.",
+            ),
+        },
+    ),
+)
+
+BOTS: Tuple[BotProfile, ...] = CORE_BOTS + EXTRA_BOTS
 BOT_BY_KEY: Dict[str, BotProfile] = {b.key: b for b in BOTS}
 BOT_BY_ID: Dict[str, BotProfile] = {b.bot_id: b for b in BOTS}
 
