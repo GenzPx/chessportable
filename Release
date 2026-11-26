@@ -1,0 +1,13 @@
+Origin: GenzPX
+Label: ChessPortable Termux Repo
+Suite: stable
+Codename: stable
+Date: Thu, 26 Nov 2026 08:03:03 UTC
+Architectures: all
+Description: Termux APT repository for ChessPortable by GenzPX
+MD5Sum:
+ a77c6f8b30c6251398996effb8b83c25              924 Packages
+ 92cdd7afda3f5326276a17812bf42d4e              633 Packages.gz
+SHA256:
+ 8ac0292d6b24b52924dea493230bc79bf277835c7e3f40deebebc4922a501295              924 Packages
+ 80cd0fe7045cd070f0ef2f95f932ea6a2f68a82badddd3d855e76983ff731ef0              633 Packages.gz

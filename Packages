@@ -1,0 +1,22 @@
+Package: chessportable
+Version: 3.0.0
+Architecture: all
+Maintainer: GenzPX <GenzPx@users.noreply.github.com>
+Homepage: https://github.com/GenzPx/chessportable
+Depends: python
+Section: games
+Priority: optional
+Installed-Size: 336
+Description: ChessPortable CLI chess for Termux by GenzPX
+ ChessPortable v3.0.0 ("Klub Catur") by GenzPX is a pure-Python
+ terminal chess game for Termux. Includes 20 unique bots (10 classic +
+ 10 extra club & legend bots, Elo 150 to 4000), living board-aware
+ dialogues, live move callouts (Brilliant/Blunder/Miss), post-game
+ eval momentum graph & rank badge, Global & Per-Bot Adaptive ('A 0'..'A 19'),
+ ARC auto-sequence, 135+ ECO openings, Coach, Tournament, 20 Puzzles & PGN.
+Filename: ./chessportable_3.0.0_all.deb
+Size: 74492
+MD5sum: f3e13e5e935202508ac435f03b0efbe9
+SHA1: bff984b09dfae0be702d601af8a105ac3e3e0b66
+SHA256: 0dbdf3673432ec4a788fcf5ec48f523d232e8031eefc26171950ecff02b69fb2
+
