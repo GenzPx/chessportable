@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "chessportable"
+version = "2.5.0"
+description = "ChessPortable v2.5 by GenzPX - Pure-Python CLI chess for Termux with Per-Bot Adaptive (A 0-9), ARC auto-sequence, ECO Openings, Tactical Coach, Gauntlet & Puzzles"
+readme = "README.md"
+requires-python = ">=3.8"
+authors = [{name = "GenzPX"}]
+license = {text = "MIT"}
+keywords = ["chess", "cli", "termux", "python", "terminal", "genzpx"]
+
+[project.urls]
+Homepage = "https://github.com/GenzPx/chessportable"
+Repository = "https://github.com/GenzPx/chessportable"
+
+[project.scripts]
+chessportable = "chessportable.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["chessportable*"]

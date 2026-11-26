@@ -1,0 +1,41 @@
+name: Test & Publish Termux APT Repo
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  test-and-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run test suite
+        run: python3 -m unittest discover -s tests -v
+
+      - name: Build Termux .deb and APT repo
+        run: |
+          OWNER="${GITHUB_REPOSITORY_OWNER}"
+          REPO="${GITHUB_REPOSITORY#*/}"
+          LOWER_OWNER="$(echo "$OWNER" | tr '[:upper:]' '[:lower:]')"
+          bash termux-pkg/build_apt_repo.sh /tmp/apt-repo "https://${LOWER_OWNER}.github.io/${REPO}"
+
+      - name: Publish to gh-pages
+        run: |
+          cd /tmp/apt-repo
+          git init -b gh-pages
+          git config user.name "GenzPX"
+          git config user.email "GenzPx@users.noreply.github.com"
+          git add -A
+          git commit -m "Update Termux APT repo"
+          git push --force "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" gh-pages:gh-pages
